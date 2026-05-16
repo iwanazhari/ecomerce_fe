@@ -20,11 +20,4 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd /root/ecomerce_fe
-            git pull origin main
-            npm install
-            npm run build
-            pm2 restart ecom-frontend || pm2 start npm --name "ecom-frontend" -- start
-            sleep 5
-            pm2 list
-            echo "✅ Frontend deployment completed!"
+            bash /root/deploy_ecommerce_fe.sh
