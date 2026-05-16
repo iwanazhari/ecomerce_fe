@@ -135,14 +135,20 @@ export default function CheckoutPage() {
   const [postalCode, setPostalCode] = useState('')
   const [notes, setNotes] = useState('')
 
+  // Stable disabled flags based on user profile (not form state — prevents focus loss)
+  const isEmailPreFilled = isAuthenticated && !!user?.email
+  const isNamePreFilled = isAuthenticated && !!(user?.firstName || user?.lastName)
+  const isPhonePreFilled = isAuthenticated && !!user?.phone
+
   // Sync form with user data when auth is ready
   useEffect(() => {
-    if (user && isAuthenticated) {
+    if (user) {
       setEmail(user.email ?? '')
-      setFullName(`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim())
+      const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
+      setFullName(name)
       setPhone(user.phone ?? '')
     }
-  }, [user, isAuthenticated])
+  }, [user])
 
   // Guard against stale cached cart items without product data
   const validItems = cart?.items?.filter((item) => item?.product) ?? []
@@ -285,30 +291,33 @@ export default function CheckoutPage() {
               </h2>
               <div className="space-y-4">
                 <Input
+                  id="checkout-email"
                   label="Email"
                   type="email"
                   placeholder="email@contoh.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  disabled={isAuthenticated}
+                  disabled={isEmailPreFilled}
                 />
                 <Input
+                  id="checkout-fullname"
                   label="Nama Lengkap"
                   placeholder="Nama lengkap Anda"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  disabled={isAuthenticated}
+                  disabled={isNamePreFilled}
                 />
                 <Input
+                  id="checkout-phone"
                   label="Nomor Telepon"
                   type="tel"
                   placeholder="08xxxxxxxxxx"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
                   required
-                  disabled={isAuthenticated}
+                  disabled={isPhonePreFilled}
                 />
                 {!isAuthenticated && (
                   <p className="text-xs text-foreground-muted">

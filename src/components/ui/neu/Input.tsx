@@ -31,11 +31,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             className={cn(
               'w-full h-12 rounded-2xl bg-white px-4 text-sm text-foreground placeholder:text-foreground-muted',
-              'border border-border',
+              'border-2 border-border',
               'transition-all duration-200',
-              'shadow-[inset_3px_3px_6px_rgba(0,0,0,0.04)]',
-              'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary',
-              error && 'focus:ring-error/40 border-error focus:border-error',
+              'shadow-[inset_2px_2px_5px_rgba(0,0,0,0.05)]',
+              'focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20',
+              'hover:border-border-dark',
+              error && 'focus:border-error focus:ring-error/20 border-error',
               Icon && 'pl-12',
               className,
             )}
