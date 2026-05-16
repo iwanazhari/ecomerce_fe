@@ -1,26 +1,384 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   Neumorphism (Soft UI) Design Tokens
+   Monochromatic "Cool Grey" — shadows do all visual work
+   ============================================================ */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base Cool Grey — everything molded from this */
+  --background: #E0E5EC;
+  --surface: #E0E5EC;
+  --surface-hover: #E0E5EC;
+
+  /* Text — dark blue-grey for primary, cooler grey for muted */
+  --foreground: #3D4852;
+  --foreground-muted: #6B7280;
+  --foreground-subtle: #8B95A5;
+
+  /* Accent — soft violet (used sparingly) */
+  --primary: #6C63FF;
+  --primary-hover: #8B84FF;
+  --primary-light: rgba(108, 99, 255, 0.12);
+  --primary-foreground: #FFFFFF;
+  --primary-glow: rgba(108, 99, 255, 0.2);
+
+  /* Secondary — teal for success */
+  --secondary: #38B2AC;
+  --secondary-hover: #319795;
+  --secondary-light: rgba(56, 178, 172, 0.12);
+  --secondary-foreground: #FFFFFF;
+
+  /* Accent */
+  --accent: #6C63FF;
+  --accent-light: rgba(108, 99, 255, 0.12);
+  --accent-foreground: #3D4852;
+
+  /* Semantic */
+  --success: #38B2AC;
+  --success-light: rgba(56, 178, 172, 0.12);
+  --warning: #F59E0B;
+  --warning-light: rgba(245, 158, 11, 0.12);
+  --error: #EF4444;
+  --error-light: rgba(239, 68, 68, 0.12);
+
+  /* Neumorphism: borders are transparent, shadows define edges */
+  --border: transparent;
+  --border-focus: #6C63FF;
+
+  /* Radius — soft, hyper-rounded */
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+  --radius-2xl: 2rem;
+  --radius-3xl: 2rem;
+
+  /* Neumorphism Shadows — dual opposing RGB shadows */
+  /* Extruded (standard raised state) */
+  --shadow-sm: 5px 5px 10px rgb(163, 177, 198, 0.6), -5px -5px 10px rgba(255, 255, 255, 0.5);
+  --shadow-md: 9px 9px 16px rgb(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.5);
+  --shadow-lg: 12px 12px 20px rgb(163, 177, 198, 0.7), -12px -12px 20px rgba(255, 255, 255, 0.6);
+  --shadow-xl: 16px 16px 32px rgb(163, 177, 198, 0.8), -16px -16px 32px rgba(255, 255, 255, 0.6);
+
+  /* Inset (pressed/well states) */
+  --shadow-inset: inset 6px 6px 10px rgb(163, 177, 198, 0.6), inset -6px -6px 10px rgba(255, 255, 255, 0.5);
+  --shadow-inset-deep: inset 10px 10px 20px rgb(163, 177, 198, 0.7), inset -10px -10px 20px rgba(255, 255, 255, 0.6);
+  --shadow-inset-small: inset 3px 3px 6px rgb(163, 177, 198, 0.6), inset -3px -3px 6px rgba(255, 255, 255, 0.5);
+
+  /* Hover states */
+  --shadow-hover: 12px 12px 20px rgb(163, 177, 198, 0.7), -12px -12px 20px rgba(255, 255, 255, 0.6);
+  --shadow-glow: 0 0 20px rgba(108, 99, 255, 0.3);
+  --shadow-soft: 9px 9px 16px rgb(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.5);
+  --shadow-button: 9px 9px 16px rgb(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.5);
+  --shadow-badge-glow: 0 0 12px rgba(108, 99, 255, 0.3);
+
+  /* Transitions */
+  --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* shadcn semantic mappings */
+  --card: #E0E5EC;
+  --card-foreground: #3D4852;
+  --popover: #E0E5EC;
+  --popover-foreground: #3D4852;
+  --muted: #E0E5EC;
+  --muted-foreground: #6B7280;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --input: #E0E5EC;
+  --ring: #6C63FF;
+  --chart-1: #6C63FF;
+  --chart-2: #38B2AC;
+  --chart-3: #F59E0B;
+  --chart-4: #EF4444;
+  --chart-5: #8B84FF;
+  --radius: 1rem;
+  --sidebar: #E0E5EC;
+  --sidebar-foreground: #3D4852;
+  --sidebar-primary: #6C63FF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E0E5EC;
+  --sidebar-accent-foreground: #6C63FF;
+  --sidebar-border: transparent;
+  --sidebar-ring: #6C63FF;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-glow: var(--primary-glow);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-light: var(--secondary-light);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
+  --color-error: var(--error);
+  --color-error-light: var(--error-light);
+  --color-border: var(--border);
+  --color-border-focus: var(--border-focus);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-3xl: var(--radius-3xl);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-inset: var(--shadow-inset);
+  --shadow-inset-deep: var(--shadow-inset-deep);
+  --shadow-inset-small: var(--shadow-inset-small);
+  --shadow-glow: var(--shadow-glow);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-hover: var(--shadow-hover);
+  --shadow-button: var(--shadow-button);
+  --shadow-badge-glow: var(--shadow-badge-glow);
+  --font-sans: var(--font-plus-jakarta-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-plus-jakarta-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-4xl: calc(var(--radius) * 2.5);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ============================================================
+   Base Styles
+   ============================================================ */
+
+* {
+  border-color: transparent;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus visible — accent ring */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(163, 177, 198, 0.4);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(163, 177, 198, 0.6);
+}
+
+/* ============================================================
+   Neumorphism Utility Classes
+   ============================================================ */
+
+/* Extruded shadows */
+.shadow-extruded-sm {
+  box-shadow: var(--shadow-sm);
+}
+.shadow-extruded {
+  box-shadow: var(--shadow-md);
+}
+.shadow-extruded-lg {
+  box-shadow: var(--shadow-lg);
+}
+.shadow-extruded-xl {
+  box-shadow: var(--shadow-xl);
+}
+.shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+/* Inset (wells) */
+.shadow-inset {
+  box-shadow: var(--shadow-inset);
+}
+.shadow-inset-deep {
+  box-shadow: var(--shadow-inset-deep);
+}
+.shadow-inset-small {
+  box-shadow: var(--shadow-inset-small);
+}
+
+/* Hover lift */
+.shadow-hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* Button shadow */
+.shadow-button {
+  box-shadow: var(--shadow-button);
+}
+
+/* Card hover — lift + enhanced shadow */
+.card-hover {
+  transition: all var(--transition);
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Icon well — deep inset */
+.icon-well {
+  box-shadow: var(--shadow-inset-deep);
+}
+
+/* ============================================================
+   Component Overrides for Neumorphism
+   ============================================================ */
+
+/* Remove default borders from shadcn components */
+.border-border, [class*="border-border/"] {
+  border-color: transparent !important;
+}
+
+/* Table cells — use inset small for header, extruded for rows */
+.table th {
+  box-shadow: var(--shadow-inset-small);
+}
+
+/* ============================================================
+   Dark Mode — Neumorphism works best in light mode
+   Provide a functional dark variant
+   ============================================================ */
+
+.dark {
+  --background: #1A1D23;
+  --surface: #1A1D23;
+  --surface-hover: #1A1D23;
+  --foreground: #E2E8F0;
+  --foreground-muted: #94A3B8;
+  --foreground-subtle: #64748B;
+  --primary: #8B84FF;
+  --primary-hover: #A5A0FF;
+  --primary-light: rgba(139, 132, 255, 0.15);
+  --primary-glow: rgba(139, 132, 255, 0.25);
+  --secondary: #34D399;
+  --secondary-hover: #6EE7B7;
+  --secondary-light: rgba(52, 211, 153, 0.15);
+  --accent: #8B84FF;
+  --accent-light: rgba(139, 132, 255, 0.15);
+  --border: transparent;
+  --border-focus: #8B84FF;
+  --shadow-sm: 5px 5px 10px rgba(0, 0, 0, 0.4), -5px -5px 10px rgba(255, 255, 255, 0.03);
+  --shadow-md: 9px 9px 16px rgba(0, 0, 0, 0.5), -9px -9px 16px rgba(255, 255, 255, 0.03);
+  --shadow-lg: 12px 12px 20px rgba(0, 0, 0, 0.6), -12px -12px 20px rgba(255, 255, 255, 0.04);
+  --shadow-xl: 16px 16px 32px rgba(0, 0, 0, 0.7), -16px -16px 32px rgba(255, 255, 255, 0.04);
+  --shadow-inset: inset 6px 6px 10px rgba(0, 0, 0, 0.5), inset -6px -6px 10px rgba(255, 255, 255, 0.03);
+  --shadow-inset-deep: inset 10px 10px 20px rgba(0, 0, 0, 0.6), inset -10px -10px 20px rgba(255, 255, 255, 0.04);
+  --shadow-inset-small: inset 3px 3px 6px rgba(0, 0, 0, 0.4), inset -3px -3px 6px rgba(255, 255, 255, 0.03);
+  --shadow-hover: 12px 12px 20px rgba(0, 0, 0, 0.6), -12px -12px 20px rgba(255, 255, 255, 0.04);
+  --shadow-glow: 0 0 20px rgba(139, 132, 255, 0.4);
+  --shadow-soft: 9px 9px 16px rgba(0, 0, 0, 0.5), -9px -9px 16px rgba(255, 255, 255, 0.03);
+  --shadow-button: 9px 9px 16px rgba(0, 0, 0, 0.5), -9px -9px 16px rgba(255, 255, 255, 0.03);
+  --shadow-badge-glow: 0 0 12px rgba(139, 132, 255, 0.4);
+  --card: #1A1D23;
+  --card-foreground: #E2E8F0;
+  --popover: #1A1D23;
+  --popover-foreground: #E2E8F0;
+  --muted: #1A1D23;
+  --muted-foreground: #94A3B8;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --input: #1A1D23;
+  --ring: #8B84FF;
+  --chart-1: #8B84FF;
+  --chart-2: #34D399;
+  --chart-3: #F59E0B;
+  --chart-4: #EF4444;
+  --chart-5: #A5A0FF;
+  --sidebar: #1A1D23;
+  --sidebar-foreground: #E2E8F0;
+  --sidebar-primary: #8B84FF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1A1D23;
+  --sidebar-accent-foreground: #8B84FF;
+  --sidebar-border: transparent;
+  --sidebar-ring: #8B84FF;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }

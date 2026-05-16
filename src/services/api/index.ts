@@ -1,0 +1,6 @@
+export { authService } from './auth.service'
+export { productService, categoryService } from './product.service'
+export { cartService } from './cart.service'
+export { checkoutService, orderService, shippingService, paymentService } from './checkout.service'
+export { wishlistService, loyaltyService } from './wishlist.service'
+export { notificationService } from './notification.service'
