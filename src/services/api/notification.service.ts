@@ -1,21 +1,23 @@
 /**
- * Notification Service — delegates to Medusa adapter layer.
- *
- * TODO: Requires custom Medusa module. Currently returns empty results.
+ * Notification Service — delegates to API adapter layer.
  */
 import {
   listNotifications,
   getUnreadCount,
-  markNotificationRead,
-  markAllNotificationsRead,
+  markRead,
+  markAllRead,
   deleteNotification,
-} from '@/lib/medusa'
-import type { Notification, NotificationListParams, UnreadCount } from '@/types'
+} from "@/lib/api";
+import type {
+  Notification,
+  NotificationListParams,
+  UnreadCount,
+} from "@/types";
 
 export const notificationService = {
   list: (params?: NotificationListParams) => listNotifications(params),
   getUnreadCount: () => getUnreadCount(),
-  markRead: (id: string) => markNotificationRead(id),
-  markAllRead: () => markAllNotificationsRead(),
+  markRead: (id: string) => markRead(id),
+  markAllRead: () => markAllRead(),
   delete: (id: string) => deleteNotification(id),
-}
+};

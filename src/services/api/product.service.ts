@@ -1,5 +1,5 @@
 /**
- * Product & Category Service — delegates to Medusa adapter layer.
+ * Product & Category Service — delegates to new API adapter layer.
  */
 import {
   listProducts,
@@ -7,16 +7,16 @@ import {
   getRecentlyViewed,
   listCategories,
   getCategoryBySlug,
-} from '@/lib/medusa'
-import type { Product, ProductListParams, RecentlyViewed, Category } from '@/types'
+} from "@/lib/api";
+import type { Product, ProductListParams, Category } from "@/types";
 
 export const productService = {
   list: (params?: ProductListParams) => listProducts(params),
   getBySlug: (slug: string) => getProductBySlug(slug),
   getRecentlyViewed: () => getRecentlyViewed(),
-}
+};
 
 export const categoryService = {
   list: () => listCategories(),
   getBySlug: (slug: string) => getCategoryBySlug(slug),
-}
+};

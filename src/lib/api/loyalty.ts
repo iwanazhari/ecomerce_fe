@@ -1,10 +1,7 @@
 /**
- * Loyalty Adapter — TODO: requires custom Medusa module.
+ * Loyalty Adapter — stub.
  *
- * Loyalty points are not a native Medusa feature.
- * Options:
- * 1. Create a custom Medusa module
- * 2. Keep client-side or use a separate service
+ * Loyalty points are not exposed by the backend API yet.
  */
 
 import type { LoyaltyAccount, LoyaltyTransaction, LoyaltyListParams, ApiResponse } from '@/types'
@@ -16,7 +13,7 @@ export async function getLoyalty(): Promise<ApiResponse<LoyaltyAccount>> {
     meta: {
       error: {
         code: 'NOT_IMPLEMENTED',
-        message: 'Loyalty points requires a custom Medusa module.',
+        message: 'Loyalty points not yet available via the backend API.',
       },
     },
   } as any

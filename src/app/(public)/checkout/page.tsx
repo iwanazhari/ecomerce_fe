@@ -1,59 +1,91 @@
-'use client'
+"use client";
 
-import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Image from 'next/image'
-import Link from 'next/link'
-import { useCart, usePrepareCheckout, useCompleteCheckout, useCreateSnap, useAuth } from '@/hooks'
-import { ROUTES } from '@/constants'
-import { formatCurrency } from '@/utils'
-import { Button, Input, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RadioGroup, RadioGroupItem, Label, Separator } from '@/components/ui'
-import { MidtransSnap } from '@/components/checkout'
-import { adminExpeditions } from '@/services/medusa-admin.service'
-import { medusa } from '@/lib/medusa/client'
-import { Check, ChevronRight, CreditCard, MapPin, User, ArrowLeft, Truck, Clock, Package } from 'lucide-react'
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  useCart,
+  usePrepareCheckout,
+  useCompleteCheckout,
+  useCreateSnap,
+  useAuth,
+} from "@/hooks";
+import { ROUTES } from "@/constants";
+import { formatCurrency } from "@/utils";
+import {
+  Button,
+  Input,
+  Textarea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  RadioGroup,
+  RadioGroupItem,
+  Label,
+  Separator,
+} from "@/components/ui";
+import { MidtransSnap } from "@/components/checkout";
+import { adminExpeditions } from "@/services/medusa-admin.service";
+import {
+  Check,
+  ChevronRight,
+  CreditCard,
+  MapPin,
+  User,
+  ArrowLeft,
+  Truck,
+  Clock,
+  Package,
+} from "lucide-react";
+import { api } from "@/lib/api/client";
 
 type Province = {
-  id: string
-  name: string
-}
+  id: string;
+  name: string;
+};
 
 type ShippingOption = {
-  id: string
-  name: string
-  amount: number
-  is_store_delivery: boolean
-}
+  id: string;
+  name: string;
+  amount: number;
+  is_store_delivery: boolean;
+};
 
-type Step = 'cart' | 'shipping' | 'payment'
+type Step = "cart" | "shipping" | "payment";
 
 const steps: { id: Step; label: string; icon: React.ElementType }[] = [
-  { id: 'cart', label: 'Keranjang', icon: Package },
-  { id: 'shipping', label: 'Pengiriman', icon: Truck },
-  { id: 'payment', label: 'Pembayaran', icon: CreditCard },
-]
+  { id: "cart", label: "Keranjang", icon: Package },
+  { id: "shipping", label: "Pengiriman", icon: Truck },
+  { id: "payment", label: "Pembayaran", icon: CreditCard },
+];
 
 function Stepper({ currentStep }: { currentStep: Step }) {
-  const currentIndex = steps.findIndex((s) => s.id === currentStep)
+  const currentIndex = steps.findIndex((s) => s.id === currentStep);
 
   return (
     <nav aria-label="Progress checkout" className="mb-8">
       <ol className="flex items-center justify-between">
         {steps.map((step, index) => {
-          const Icon = step.icon
-          const isActive = index === currentIndex
-          const isCompleted = index < currentIndex
+          const Icon = step.icon;
+          const isActive = index === currentIndex;
+          const isCompleted = index < currentIndex;
 
           return (
-            <li key={step.id} className="flex flex-1 items-center last:flex-initial">
+            <li
+              key={step.id}
+              className="flex flex-1 items-center last:flex-initial"
+            >
               <div className="flex flex-col items-center">
                 <div
                   className={`flex size-10 items-center justify-center rounded-full border-2 transition-all ${
                     isCompleted
-                      ? 'border-transparent bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-button'
+                      ? "border-transparent bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-button"
                       : isActive
-                        ? 'border-primary text-primary'
-                        : 'border-border text-foreground-subtle'
+                        ? "border-primary text-primary"
+                        : "border-border text-foreground-subtle"
                   }`}
                 >
                   {isCompleted ? (
@@ -64,7 +96,7 @@ function Stepper({ currentStep }: { currentStep: Step }) {
                 </div>
                 <span
                   className={`mt-2 text-xs font-medium ${
-                    isActive ? 'text-primary' : 'text-foreground-muted'
+                    isActive ? "text-primary" : "text-foreground-muted"
                   }`}
                 >
                   {step.label}
@@ -73,89 +105,121 @@ function Stepper({ currentStep }: { currentStep: Step }) {
               {index < steps.length - 1 && (
                 <div
                   className={`mx-2 h-0.5 flex-1 transition-colors ${
-                    isCompleted ? 'bg-gradient-to-r from-indigo-600 to-violet-600' : 'bg-border'
+                    isCompleted
+                      ? "bg-gradient-to-r from-indigo-600 to-violet-600"
+                      : "bg-border"
                   }`}
                 />
               )}
             </li>
-          )
+          );
         })}
       </ol>
     </nav>
-  )
+  );
 }
 
 export default function CheckoutPage() {
-  const router = useRouter()
-  const { data: cart, isLoading: cartLoading } = useCart()
-  const { user, isAuthenticated } = useAuth()
-  const prepareCheckout = usePrepareCheckout()
-  const completeCheckout = useCompleteCheckout()
-  const createSnap = useCreateSnap()
+  const router = useRouter();
+  const { data: cart, isLoading: cartLoading } = useCart();
+  const { user, isAuthenticated } = useAuth();
+  const prepareCheckout = usePrepareCheckout();
+  const completeCheckout = useCompleteCheckout();
+  const createSnap = useCreateSnap();
 
-  const [step, setStep] = useState<Step>('shipping')
-  const [snapToken, setSnapToken] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [preparedCartId, setPreparedCartId] = useState<string | null>(null)
-  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([])
-  const [shippingLoading, setShippingLoading] = useState(true)
-  const [provinces, setProvinces] = useState<Province[]>([])
-  const [provinceLoading, setProvinceLoading] = useState(true)
-  const [selectedShipping, setSelectedShipping] = useState('')
-  const hasPaid = useRef(false)
+  const [step, setStep] = useState<Step>("shipping");
+  const [snapToken, setSnapToken] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [preparedCartId, setPreparedCartId] = useState<string | null>(null);
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [shippingLoading, setShippingLoading] = useState(true);
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [provinceLoading, setProvinceLoading] = useState(true);
+  const [selectedShipping, setSelectedShipping] = useState("");
+  const hasPaid = useRef(false);
 
   // Fetch shipping options and provinces
   useEffect(() => {
-    adminExpeditions.getShippingOptions().then((options) => {
-      setShippingOptions(options)
-      setShippingLoading(false)
-      if (options.length > 0) {
-        setSelectedShipping(options[0].id)
-      }
-    }).catch(() => {
-      setShippingLoading(false)
-    })
+    adminExpeditions
+      .getShippingOptions()
+      .then((options) => {
+        const mapped = (options as Record<string, unknown>[]).map((exp) => ({
+          id: (exp.id as string) ?? "",
+          name: (exp.name as string) ?? "",
+          code: (exp.code as string) ?? "",
+          type: (exp.type as string) ?? "",
+          amount: (exp.flatRate as number) ?? (exp.flat_rate as number) ?? 0,
+          is_store_delivery:
+            (exp.isStoreDelivery as boolean) ??
+            (exp.is_store_delivery as boolean) ??
+            false,
+        }));
+        setShippingOptions(mapped);
+        setShippingLoading(false);
+        if (mapped.length > 0) {
+          setSelectedShipping(mapped[0].id);
+        }
+      })
+      .catch(() => {
+        setShippingLoading(false);
+      });
 
     // Fetch provinces from store API (public, no auth needed)
-    medusa.client.fetch('/store/provinces').then((res: any) => {
-      setProvinces(res.provinces ?? [])
-      setProvinceLoading(false)
-    }).catch(() => {
-      setProvinceLoading(false)
-    })
-  }, [])
+    api
+      .get<Record<string, unknown>>("/provinces")
+      .then((res) => {
+        if (res.success && res.data) {
+          const data = res.data as Record<string, unknown>;
+          const provs = (data.data ?? data.provinces ?? data) as {
+            id: string;
+            province: string;
+          }[];
+          if (Array.isArray(provs)) {
+            setProvinces(provs.map((p) => ({ id: p.id, name: p.province })));
+          }
+        }
+        setProvinceLoading(false);
+      })
+      .catch(() => {
+        setProvinceLoading(false);
+      });
+  }, []);
 
   // Checkout form state — auto-fill from user profile when logged in
-  const [email, setEmail] = useState('')
-  const [fullName, setFullName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [addressLine, setAddressLine] = useState('')
-  const [city, setCity] = useState('')
-  const [province, setProvince] = useState('')
-  const [postalCode, setPostalCode] = useState('')
-  const [notes, setNotes] = useState('')
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [addressLine, setAddressLine] = useState("");
+  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [notes, setNotes] = useState("");
 
   // Stable disabled flags based on user profile (not form state — prevents focus loss)
-  const isEmailPreFilled = isAuthenticated && !!user?.email
-  const isNamePreFilled = isAuthenticated && !!(user?.firstName || user?.lastName)
-  const isPhonePreFilled = isAuthenticated && !!user?.phone
+  const isEmailPreFilled = isAuthenticated && !!user?.email;
+  const isNamePreFilled =
+    isAuthenticated && !!(user?.firstName || user?.lastName);
+  const isPhonePreFilled = isAuthenticated && !!user?.phone;
 
   // Sync form with user data when auth is ready
   useEffect(() => {
     if (user) {
-      setEmail(user.email ?? '')
-      const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
-      setFullName(name)
-      setPhone(user.phone ?? '')
+      setEmail(user.email ?? "");
+      const name = [user.firstName, user.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      setFullName(name);
+      setPhone(user.phone ?? "");
     }
-  }, [user])
+  }, [user]);
 
   // Guard against stale cached cart items without product data
-  const validItems = cart?.items?.filter((item) => item?.product) ?? []
-  const subtotal = cart?.subtotal ?? 0
-  const selectedOption = shippingOptions.find((o) => o.id === selectedShipping)
-  const shippingCost = selectedOption?.amount ?? 0
-  const total = subtotal + shippingCost
+  const validItems = cart?.items?.filter((item) => item?.product) ?? [];
+  const subtotal = cart?.subtotal ?? 0;
+  const selectedOption = shippingOptions.find((o) => o.id === selectedShipping);
+  const shippingCost = selectedOption?.amount ?? 0;
+  const total = subtotal + shippingCost;
 
   if (cartLoading) {
     return (
@@ -171,7 +235,7 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!validItems.length) {
@@ -179,18 +243,21 @@ export default function CheckoutPage() {
       <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6">
         <p className="text-lg text-foreground-muted">Keranjang kosong</p>
         <Link href={ROUTES.PRODUCTS}>
-          <Button variant="primary" className="mt-4 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button">
+          <Button
+            variant="primary"
+            className="mt-4 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button"
+          >
             <ArrowLeft className="mr-2 size-4" />
             Mulai Belanja
           </Button>
         </Link>
       </div>
-    )
+    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+    e.preventDefault();
+    setIsSubmitting(true);
 
     try {
       // Step 1: Prepare cart (email, address, shipping method)
@@ -203,78 +270,99 @@ export default function CheckoutPage() {
           city,
           province,
           postalCode,
-          country: 'Indonesia',
+          country: "Indonesia",
         },
         shippingMethod: selectedShipping,
-        paymentMethod: 'midtrans',
+        paymentMethod: "midtrans",
         notes: notes || undefined,
-      })
+      });
 
-      const cartId = prepResult.data.cartId
+      const cartId = prepResult.data.cartId;
 
       // Step 2: Create Snap token
-      const names = fullName.split(' ')
+      const names = fullName.split(" ");
       const snapResult = await createSnap.mutateAsync({
         cartId,
         grossAmount: total,
         customerDetails: {
-          first_name: names[0] ?? '',
-          last_name: names.slice(1).join(' '),
+          first_name: names[0] ?? "",
+          last_name: names.slice(1).join(" "),
           email,
           phone,
         },
-      })
+      });
 
       if (!snapResult.data?.token) {
-        throw new Error(snapResult.success === false ? (snapResult.meta as any)?.error?.message || 'Gagal membuat token pembayaran' : 'Gagal membuat token pembayaran')
+        throw new Error(
+          snapResult.success === false
+            ? (snapResult.meta as any)?.error?.message ||
+                "Gagal membuat token pembayaran"
+            : "Gagal membuat token pembayaran",
+        );
       }
 
       // Step 3: Store cart ID, move to payment step, and open Snap popup
-      setPreparedCartId(cartId)
-      setStep('payment')
-      setSnapToken(snapResult.data.token)
+      setPreparedCartId(cartId);
+      setStep("payment");
+      setSnapToken(snapResult.data.token);
     } catch {
       // Error handled by mutation
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleSnapCallback = async (result: {
-    transaction_status: string
-    order_id: string
+    transaction_status: string;
+    order_id: string;
   }) => {
     // Prevent duplicate processing
-    if (hasPaid.current) return
-    hasPaid.current = true
+    if (hasPaid.current) return;
+    hasPaid.current = true;
 
-    if (result.transaction_status === 'settlement' || result.transaction_status === 'capture') {
+    if (
+      result.transaction_status === "settlement" ||
+      result.transaction_status === "capture"
+    ) {
       // Payment succeeded -> complete checkout -> create order
       try {
-        const orderResult = await completeCheckout.mutateAsync(preparedCartId!)
-        window.location.href = `/payment/finish?order=${orderResult.data?.id ?? ''}`
+        const orderResult = await completeCheckout.mutateAsync(preparedCartId!);
+        window.location.href = `/payment/finish?order=${orderResult.data?.id ?? ""}`;
       } catch {
-        window.location.href = `/payment/error`
+        window.location.href = `/payment/error`;
       }
-    } else if (result.transaction_status === 'pending') {
+    } else if (result.transaction_status === "pending") {
       // Waiting for payment -> redirect to pending
-      window.location.href = `/payment/pending`
+      window.location.href = `/payment/pending`;
     } else {
       // Failed/denied/cancel
-      window.location.href = `/payment/error`
+      window.location.href = `/payment/error`;
     }
-  }
+  };
 
-  const isFormValid = email && fullName && phone && addressLine && city && province && postalCode && selectedShipping
+  const isFormValid =
+    email &&
+    fullName &&
+    phone &&
+    addressLine &&
+    city &&
+    province &&
+    postalCode &&
+    selectedShipping;
 
   return (
     <form onSubmit={handleSubmit}>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         <div className="mb-6 flex items-center gap-4">
-          <Link href={ROUTES.CART} className="text-foreground-muted hover:text-foreground">
+          <Link
+            href={ROUTES.CART}
+            className="text-foreground-muted hover:text-foreground"
+          >
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Checkout</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
+            Checkout
+          </h1>
         </div>
 
         {/* Stepper */}
@@ -315,13 +403,15 @@ export default function CheckoutPage() {
                   type="tel"
                   placeholder="08xxxxxxxxxx"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                  onChange={(e) =>
+                    setPhone(e.target.value.replace(/[^0-9]/g, ""))
+                  }
                   required
                   disabled={isPhonePreFilled}
                 />
                 {!isAuthenticated && (
                   <p className="text-xs text-foreground-muted">
-                    Sudah punya akun?{' '}
+                    Sudah punya akun?{" "}
                     <Link
                       href={`${ROUTES.LOGIN}?redirect=/checkout`}
                       className="text-primary hover:underline"
@@ -349,10 +439,16 @@ export default function CheckoutPage() {
                 />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <Label className="mb-1 block text-sm font-medium text-foreground">Provinsi</Label>
+                    <Label className="mb-1 block text-sm font-medium text-foreground">
+                      Provinsi
+                    </Label>
                     <Select value={province} onValueChange={setProvince}>
                       <SelectTrigger>
-                        <SelectValue placeholder={provinceLoading ? "Memuat..." : "Pilih provinsi"} />
+                        <SelectValue
+                          placeholder={
+                            provinceLoading ? "Memuat..." : "Pilih provinsi"
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {provinces.map((p) => (
@@ -379,7 +475,9 @@ export default function CheckoutPage() {
                   required
                 />
                 <div>
-                  <Label className="mb-1 block text-sm font-medium text-foreground">Catatan Pesanan (opsional)</Label>
+                  <Label className="mb-1 block text-sm font-medium text-foreground">
+                    Catatan Pesanan (opsional)
+                  </Label>
                   <Textarea
                     placeholder="Catatan untuk penjual"
                     value={notes}
@@ -402,16 +500,22 @@ export default function CheckoutPage() {
                   <div className="h-12 bg-foreground-subtle rounded-lg" />
                 </div>
               ) : shippingOptions.length === 0 ? (
-                <p className="text-sm text-foreground-muted">Tidak ada metode pengiriman tersedia</p>
+                <p className="text-sm text-foreground-muted">
+                  Tidak ada metode pengiriman tersedia
+                </p>
               ) : (
-                <RadioGroup value={selectedShipping} onValueChange={setSelectedShipping} className="space-y-3">
+                <RadioGroup
+                  value={selectedShipping}
+                  onValueChange={setSelectedShipping}
+                  className="space-y-3"
+                >
                   {shippingOptions.map((option) => (
                     <div
                       key={option.id}
                       className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
                         selectedShipping === option.id
-                          ? 'border-primary bg-primary-light'
-                          : 'border-border/60 hover:bg-surface-hover'
+                          ? "border-primary bg-primary-light"
+                          : "border-border/60 hover:bg-surface-hover"
                       }`}
                     >
                       <RadioGroupItem value={option.id} id={option.id} />
@@ -420,16 +524,25 @@ export default function CheckoutPage() {
                       ) : (
                         <Package className="size-5 text-primary" />
                       )}
-                      <Label htmlFor={option.id} className="flex-1 cursor-pointer">
+                      <Label
+                        htmlFor={option.id}
+                        className="flex-1 cursor-pointer"
+                      >
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">{option.name}</span>
+                          <span className="text-sm font-medium text-foreground">
+                            {option.name}
+                          </span>
                           {option.is_store_delivery && (
-                            <span className="text-xs text-foreground-muted">(Kurir Toko)</span>
+                            <span className="text-xs text-foreground-muted">
+                              (Kurir Toko)
+                            </span>
                           )}
                         </div>
                       </Label>
                       <span className="text-sm font-semibold text-foreground">
-                        {option.amount > 0 ? formatCurrency(option.amount) : (
+                        {option.amount > 0 ? (
+                          formatCurrency(option.amount)
+                        ) : (
                           <span className="text-success">Gratis</span>
                         )}
                       </span>
@@ -468,9 +581,13 @@ export default function CheckoutPage() {
                           {item.product.name}
                         </p>
                         {item.variant && (
-                          <p className="text-xs text-foreground-muted">{item.variant.name}</p>
+                          <p className="text-xs text-foreground-muted">
+                            {item.variant.name}
+                          </p>
                         )}
-                        <p className="text-xs text-foreground-muted">x{item.quantity}</p>
+                        <p className="text-xs text-foreground-muted">
+                          x{item.quantity}
+                        </p>
                       </div>
                       <span className="text-sm font-semibold text-foreground">
                         {formatCurrency(item.price * item.quantity)}
@@ -488,7 +605,8 @@ export default function CheckoutPage() {
                 Pembayaran
               </h2>
               <p className="text-sm text-foreground-muted">
-                Pembayaran diproses melalui Midtrans. Anda akan diarahkan ke halaman pembayaran setelah konfirmasi pesanan.
+                Pembayaran diproses melalui Midtrans. Anda akan diarahkan ke
+                halaman pembayaran setelah konfirmasi pesanan.
               </p>
             </div>
           </div>
@@ -496,7 +614,9 @@ export default function CheckoutPage() {
           {/* Right: Order Summary */}
           <div className="lg:col-span-1">
             <div className="sticky top-20 rounded-xl border border-border/60 bg-surface p-4 shadow-soft sm:p-6">
-              <h2 className="text-lg font-semibold text-foreground">Ringkasan Belanja</h2>
+              <h2 className="text-lg font-semibold text-foreground">
+                Ringkasan Belanja
+              </h2>
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between text-foreground-muted">
                   <span>Subtotal</span>
@@ -517,14 +637,25 @@ export default function CheckoutPage() {
                 fullWidth
                 size="lg"
                 className="mt-6 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button"
-                isLoading={isSubmitting || prepareCheckout.isPending || createSnap.isPending}
+                isLoading={
+                  isSubmitting ||
+                  prepareCheckout.isPending ||
+                  createSnap.isPending
+                }
                 disabled={!isFormValid}
               >
-                {step === 'payment' ? 'Menunggu Pembayaran...' : 'Bayar Sekarang'}
+                {step === "payment"
+                  ? "Menunggu Pembayaran..."
+                  : "Bayar Sekarang"}
               </Button>
               {!isAuthenticated && (
                 <Link href={ROUTES.LOGIN}>
-                  <Button variant="secondary" fullWidth size="sm" className="mt-2 rounded-full">
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    size="sm"
+                    className="mt-2 rounded-full"
+                  >
                     Masuk untuk poin loyalitas
                   </Button>
                 </Link>
@@ -541,15 +672,15 @@ export default function CheckoutPage() {
           onSuccess={handleSnapCallback as any}
           onPending={handleSnapCallback as any}
           onError={() => {
-            hasPaid.current = true
-            window.location.href = '/payment/error'
+            hasPaid.current = true;
+            window.location.href = "/payment/error";
           }}
           onClose={() => {
             // User closed without paying -- allow retry
-            hasPaid.current = true
+            hasPaid.current = true;
           }}
         />
       )}
     </form>
-  )
+  );
 }

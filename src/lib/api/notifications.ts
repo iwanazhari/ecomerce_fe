@@ -1,11 +1,9 @@
 /**
- * Notifications Adapter — TODO: requires custom Medusa module.
+ * Notifications Adapter — Express backend API → frontend types.
  *
- * Notifications are not a native Medusa feature.
- * Options:
- * 1. Create a custom Medusa module with Event Bus + API routes
- * 2. Use Server-Sent Events or polling with a custom module
- * 3. Keep WebSocket with a separate service (current approach)
+ * The API documentation mentions notifications but doesn't expose dedicated endpoints yet.
+ * WebSocket events from the backend handle real-time notifications.
+ * Using stub with API-ready interface.
  */
 
 import type { Notification, NotificationListParams, UnreadCount, ApiResponse } from '@/types'

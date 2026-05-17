@@ -1,16 +1,12 @@
 /**
- * Wishlist Adapter — TODO: requires custom Medusa module.
+ * Wishlist Adapter — Express backend API → frontend types.
  *
- * Wishlist is not a native Medusa feature.
- * Options:
- * 1. Create a custom Medusa module with data model + API routes
- * 2. Keep it client-side (localStorage only)
- * 3. Use a separate service/database for wishlist
+ * The API documentation doesn't expose wishlist endpoints yet.
+ * Using localStorage as fallback with API-ready interface.
  */
 
 import type { Wishlist, WishlistItem, Product, ApiResponse } from '@/types'
 
-// Client-side fallback using localStorage
 const WISHLIST_KEY = 'wp_wishlist_product_ids'
 
 function getProductIds(): string[] {
@@ -28,7 +24,6 @@ function setProductIds(ids: string[]): void {
 }
 
 export async function getWishlist(): Promise<ApiResponse<Wishlist>> {
-  // Returns empty wishlist with client-side product IDs
   return {
     success: true,
     data: {
@@ -37,7 +32,7 @@ export async function getWishlist(): Promise<ApiResponse<Wishlist>> {
       items: getProductIds().map((id) => ({
         id: `wishlist-item-${id}`,
         productId: id,
-        product: {} as Product, // Product data would need to be fetched separately
+        product: {} as Product,
         addedAt: new Date().toISOString(),
       })),
     },
