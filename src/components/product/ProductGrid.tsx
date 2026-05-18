@@ -7,28 +7,41 @@ import { ProductCard } from '@/components/product/ProductCard'
 import { CardSkeleton, ListSkeleton } from '@/components/ui/Skeleton'
 import { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext } from '@/components/ui'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
+import type { Product, Category } from '@/types'
 
 const PAGE_SIZE = 12
 
 interface ProductGridProps {
+  initialProducts?: Product[]
+  initialCategories?: Category[]
+  initialMeta?: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
   initialSearch?: string
+  initialCategory?: string
+  initialSort?: 'newest' | 'price_asc' | 'price_desc' | 'popular'
 }
 
-export function ProductGrid({ initialSearch }: ProductGridProps) {
-  const [search, setSearch] = useState(initialSearch ?? '')
-  const [category, setCategory] = useState('')
-  const [sort, setSort] = useState<'newest' | 'price_asc' | 'price_desc' | 'popular'>('newest')
+export function ProductGrid({ 
+  initialProducts = [],
+  initialCategories = [],
+  initialMeta,
+  initialSearch = '',
+  initialCategory = '',
+  initialSort = 'newest'
+}: ProductGridProps) {
+  const [search, setSearch] = useState(initialSearch)
+  const [category, setCategory] = useState(initialCategory || '')
+  const [sort, setSort] = useState(initialSort)
   const [showFilters, setShowFilters] = useState(false)
-  const [page, setPage] = useState(1)
-
-  // Sync initialSearch prop when it changes (e.g. from URL on navigation)
-  useEffect(() => {
-    if (initialSearch) {
-      setSearch(initialSearch)
-    }
-  }, [initialSearch])
+  const [page, setPage] = useState(initialMeta?.page || 1)
 
   const debouncedSearch = useDebounce(search, 300)
+  
+  // Fetch products (will use cache from SSR on first render)
   const { data: products, isLoading: productsLoading } = useProducts({
     search: debouncedSearch || undefined,
     category: category || undefined,
@@ -36,11 +49,24 @@ export function ProductGrid({ initialSearch }: ProductGridProps) {
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   })
-  const { data: categories } = useCategories()
+  
+  // Use initial categories or fetch from API
+  const { data: categoriesData } = useCategories()
+  const categories = initialCategories.length > 0 ? initialCategories : (categoriesData || [])
 
-  const productList = products?.data ?? []
-  const totalProducts = products?.meta?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE))
+  // Use server-rendered data on first load, then switch to client data
+  const productList = (products?.data ?? initialProducts) 
+  const totalProducts = products?.meta?.total ?? initialMeta?.total ?? initialProducts.length
+  const totalPages = initialMeta?.totalPages ?? Math.max(1, Math.ceil(totalProducts / PAGE_SIZE))
+
+  // Show skeleton only if NO initial data AND still loading
+  if (productsLoading && initialProducts.length === 0) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <ListSkeleton count={10} />
+      </div>
+    )
+  }
 
   const handleClearFilters = useCallback(() => {
     setSearch('')
