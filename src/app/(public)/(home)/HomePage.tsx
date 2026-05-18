@@ -855,13 +855,12 @@ export function HomePage() {
                 &ldquo;{testimonial1.text}&rdquo;
               </blockquote>
               <div className="mt-6 flex items-center gap-3">
-                <Image
+                <img
                   src={`https://ui-avatars.com/api/?name=Budi+Santoso&background=6366f1&color=fff&size=40&rounded=true&bold=true`}
                   alt={testimonial1.author}
                   width={40}
                   height={40}
                   className="rounded-full"
-                  unoptimized
                 />
                 <div>
                   <p className="text-sm font-bold text-foreground">
@@ -1015,14 +1014,13 @@ export function HomePage() {
               </div>
               <div className="flex -space-x-2">
                 {["Sarah", "Ahmad", "Dewi", "Rizky"].map((name, i) => (
-                  <Image
+                  <img
                     key={i}
                     src={`https://ui-avatars.com/api/?name=${name}&background=6366f1&color=fff&size=36&rounded=true&bold=true`}
                     alt={name}
                     width={36}
                     height={36}
                     className="rounded-full ring-2 ring-background"
-                    unoptimized
                     style={{ marginLeft: i > 0 ? "-0.5rem" : undefined }}
                   />
                 ))}
@@ -1290,13 +1288,12 @@ export function HomePage() {
                 air bersih tidak boleh jadi kompromi.
               </p>
               <div className="mt-8 flex items-center gap-3">
-                <Image
+                <img
                   src="https://ui-avatars.com/api/?name=Alex+M&background=6366f1&color=fff&size=44&rounded=true&bold=true"
                   alt="Alex M."
                   width={44}
                   height={44}
                   className="rounded-full"
-                  unoptimized
                 />
                 <div>
                   <p className="text-sm font-bold text-foreground">Alex M.</p>

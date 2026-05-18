@@ -2,7 +2,9 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   images: {
-    unoptimized: process.env.NODE_ENV === 'development',
+    // Disable optimization for external images to avoid 400 errors
+    // Images will be served directly from source
+    unoptimized: true,
     remotePatterns: [
       // Medusa backend (port 9000)
       {
@@ -30,14 +32,35 @@ const nextConfig: NextConfig = {
         port: '3000',
         pathname: '/**',
       },
-      // External images
+      // External images - pravatar.cc
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: 'i.pravatar.cc',
+        pathname: '/**',
+      },
+      // External images - unsplash.com
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+      // External images - ui-avatars.com
+      {
+        protocol: 'https',
+        hostname: 'ui-avatars.com',
+        pathname: '/**',
+      },
+      // MinIO CDN
+      {
+        protocol: 'https',
+        hostname: 'shop.filterairwaterpro.com',
+        pathname: '/cdn/**',
       },
       {
         protocol: 'http',
-        hostname: '**',
+        hostname: '127.0.0.1',
+        port: '9000',
+        pathname: '/**',
       },
     ],
   },
