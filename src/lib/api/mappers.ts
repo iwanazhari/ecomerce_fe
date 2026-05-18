@@ -124,7 +124,7 @@ export function mapBackendVariant(
   productId: string,
 ): ProductVariant {
   return {
-    id: variant.id as string,
+    id: (variant.id as string) ?? `${productId}-${variant.sku ?? "default"}`,
     productId,
     sku: (variant.sku as string) ?? "",
     name: (variant.title as string) ?? "",
@@ -206,12 +206,14 @@ export function mapBackendCartItem(
               (productRaw.title as string) ??
               "",
             slug:
+              (item.productSlug as string) ??
               (item.productHandle as string) ??
               (productRaw.handle as string) ??
               "",
             description: null,
             shortDescription: null,
             thumbnail:
+              (item.productThumbnail as string) ??
               (item.thumbnail as string) ??
               (productRaw.thumbnail as string) ??
               undefined,
@@ -221,7 +223,17 @@ export function mapBackendCartItem(
             isActive: true,
             categories: [],
             variants: [],
-            images: [],
+            images: item.productThumbnail
+              ? [
+                  {
+                    id: "cart-thumb",
+                    url: item.productThumbnail as string,
+                    alt: null,
+                    sortOrder: 0,
+                    isPrimary: true,
+                  },
+                ]
+              : [],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           },

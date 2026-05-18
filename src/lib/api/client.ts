@@ -68,7 +68,11 @@ function buildUrl(
   path: string,
   params?: Record<string, string | number | boolean | undefined>,
 ): string {
-  const url = new URL(path, config.apiUrl);
+  const baseUrl = config.apiUrl.endsWith("/")
+    ? config.apiUrl
+    : `${config.apiUrl}/`;
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  const url = new URL(cleanPath, baseUrl);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined) {

@@ -4,13 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  useCart,
-  usePrepareCheckout,
-  useCompleteCheckout,
-  useCreateSnap,
-  useAuth,
-} from "@/hooks";
+import { useCart, useCreateOrder, useCreateSnap, useAuth } from "@/hooks";
 import { ROUTES } from "@/constants";
 import { formatCurrency } from "@/utils";
 import {
@@ -28,7 +22,7 @@ import {
   Separator,
 } from "@/components/ui";
 import { MidtransSnap } from "@/components/checkout";
-import { adminExpeditions } from "@/services/medusa-admin.service";
+import { listExpeditions } from "@/lib/api/shipping";
 import {
   Check,
   ChevronRight,
@@ -123,14 +117,13 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { data: cart, isLoading: cartLoading } = useCart();
   const { user, isAuthenticated } = useAuth();
-  const prepareCheckout = usePrepareCheckout();
-  const completeCheckout = useCompleteCheckout();
+  const createOrder = useCreateOrder();
   const createSnap = useCreateSnap();
 
   const [step, setStep] = useState<Step>("shipping");
   const [snapToken, setSnapToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [preparedCartId, setPreparedCartId] = useState<string | null>(null);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [shippingLoading, setShippingLoading] = useState(true);
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -140,10 +133,10 @@ export default function CheckoutPage() {
 
   // Fetch shipping options and provinces
   useEffect(() => {
-    adminExpeditions
-      .getShippingOptions()
-      .then((options) => {
-        const mapped = (options as Record<string, unknown>[]).map((exp) => ({
+    listExpeditions()
+      .then((res) => {
+        const options = res.data || [];
+        const mapped = options.map((exp) => ({
           id: (exp.id as string) ?? "",
           name: (exp.name as string) ?? "",
           code: (exp.code as string) ?? "",
@@ -260,10 +253,10 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      // Step 1: Prepare cart (email, address, shipping method)
-      const prepResult = await prepareCheckout.mutateAsync({
-        email,
+      // Step 1: Create order
+      const orderResult = await createOrder.mutateAsync({
         fullName,
+        email,
         phone,
         shippingAddress: {
           addressLine,
@@ -277,32 +270,37 @@ export default function CheckoutPage() {
         notes: notes || undefined,
       });
 
-      const cartId = prepResult.data.cartId;
+      if (!orderResult.data?.id) {
+        throw new Error(
+          (orderResult.meta as any)?.error?.message || "Gagal membuat pesanan",
+        );
+      }
 
-      // Step 2: Create Snap token
-      const names = fullName.split(" ");
+      const orderId = orderResult.data.id;
+      const orderTotal = orderResult.data.totalAmount;
+
+      if (orderTotal <= 0) {
+        throw new Error(
+          "Total pesanan tidak valid. Pastikan produk memiliki harga yang benar.",
+        );
+      }
+
+      // Step 2: Create Snap token from the created order (use server-calculated total)
       const snapResult = await createSnap.mutateAsync({
-        cartId,
-        grossAmount: total,
-        customerDetails: {
-          first_name: names[0] ?? "",
-          last_name: names.slice(1).join(" "),
-          email,
-          phone,
-        },
+        orderId,
+        amount: orderTotal,
+        paymentType: "qris",
       });
 
       if (!snapResult.data?.token) {
         throw new Error(
-          snapResult.success === false
-            ? (snapResult.meta as any)?.error?.message ||
-                "Gagal membuat token pembayaran"
-            : "Gagal membuat token pembayaran",
+          (snapResult.meta as any)?.error?.message ||
+            "Gagal membuat token pembayaran",
         );
       }
 
-      // Step 3: Store cart ID, move to payment step, and open Snap popup
-      setPreparedCartId(cartId);
+      // Step 3: Store order ID, move to payment step, and open Snap popup
+      setCreatedOrderId(orderId);
       setStep("payment");
       setSnapToken(snapResult.data.token);
     } catch {
@@ -312,7 +310,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleSnapCallback = async (result: {
+  const handleSnapCallback = (result: {
     transaction_status: string;
     order_id: string;
   }) => {
@@ -324,19 +322,14 @@ export default function CheckoutPage() {
       result.transaction_status === "settlement" ||
       result.transaction_status === "capture"
     ) {
-      // Payment succeeded -> complete checkout -> create order
-      try {
-        const orderResult = await completeCheckout.mutateAsync(preparedCartId!);
-        window.location.href = `/payment/finish?order=${orderResult.data?.id ?? ""}`;
-      } catch {
-        window.location.href = `/payment/error`;
-      }
+      // Payment succeeded — redirect to finish page with order ID
+      window.location.href = `/payment/finish?order=${createdOrderId ?? ""}`;
     } else if (result.transaction_status === "pending") {
-      // Waiting for payment -> redirect to pending
-      window.location.href = `/payment/pending`;
+      // Waiting for payment — redirect to pending page
+      window.location.href = `/payment/pending?order=${createdOrderId ?? ""}`;
     } else {
-      // Failed/denied/cancel
-      window.location.href = `/payment/error`;
+      // Failed/denied/cancel — redirect to error page
+      window.location.href = `/payment/error?order=${createdOrderId ?? ""}`;
     }
   };
 
@@ -638,9 +631,7 @@ export default function CheckoutPage() {
                 size="lg"
                 className="mt-6 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 shadow-button"
                 isLoading={
-                  isSubmitting ||
-                  prepareCheckout.isPending ||
-                  createSnap.isPending
+                  isSubmitting || createOrder.isPending || createSnap.isPending
                 }
                 disabled={!isFormValid}
               >

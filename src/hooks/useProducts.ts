@@ -1,53 +1,58 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { productService, categoryService, cartService } from '@/services/api'
-import { addCartItemSchema, updateCartItemSchema, productFilterSchema } from '@/validators'
-import { useUIStore } from '@/store'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { productService, categoryService, cartService } from "@/services/api";
+import {
+  addCartItemSchema,
+  updateCartItemSchema,
+  productFilterSchema,
+} from "@/validators";
+import { useUIStore } from "@/store";
 import type {
   ProductListParams,
   AddCartItemInput,
   UpdateCartItemInput,
   Product,
-} from '@/types'
+} from "@/types";
 
 // ============================================================
 // Product Keys
 // ============================================================
 
 const productKeys = {
-  all: ['products'] as const,
-  lists: () => [...productKeys.all, 'list'] as const,
-  list: (params: ProductListParams) => [...productKeys.lists(), params] as const,
-  details: () => [...productKeys.all, 'detail'] as const,
+  all: ["products"] as const,
+  lists: () => [...productKeys.all, "list"] as const,
+  list: (params: ProductListParams) =>
+    [...productKeys.lists(), params] as const,
+  details: () => [...productKeys.all, "detail"] as const,
   detail: (slug: string) => [...productKeys.details(), slug] as const,
-  recentlyViewed: () => [...productKeys.all, 'recently-viewed'] as const,
-}
+  recentlyViewed: () => [...productKeys.all, "recently-viewed"] as const,
+};
 
 // ============================================================
 // Category Keys
 // ============================================================
 
 const categoryKeys = {
-  all: ['categories'] as const,
-  list: () => [...categoryKeys.all, 'list'] as const,
-  detail: (slug: string) => [...categoryKeys.all, 'detail', slug] as const,
-}
+  all: ["categories"] as const,
+  list: () => [...categoryKeys.all, "list"] as const,
+  detail: (slug: string) => [...categoryKeys.all, "detail", slug] as const,
+};
 
 // ============================================================
 // Cart Keys
 // ============================================================
 
 const cartKeys = {
-  all: ['cart'] as const,
-  current: () => [...cartKeys.all, 'current'] as const,
-}
+  all: ["cart"] as const,
+  current: () => [...cartKeys.all, "current"] as const,
+};
 
 // ============================================================
 // Products
 // ============================================================
 
 export function useProducts(params?: ProductListParams) {
-  const parsed = params ? productFilterSchema.safeParse(params) : null
-  const validParams = parsed?.success ? parsed.data : params
+  const parsed = params ? productFilterSchema.safeParse(params) : null;
+  const validParams = parsed?.success ? parsed.data : params;
 
   return useQuery({
     queryKey: productKeys.list(validParams ?? {}),
@@ -57,16 +62,23 @@ export function useProducts(params?: ProductListParams) {
       meta: r.meta,
     }),
     staleTime: 1000 * 60 * 2, // 2 min
-  })
+  });
 }
 
 export function useProduct(slug: string) {
   return useQuery({
     queryKey: productKeys.detail(slug),
-    queryFn: () => productService.getBySlug(slug).then((r) => r.data),
+    queryFn: () =>
+      productService.getBySlug(slug).then((r) => {
+        if (!r.success || !r.data) {
+          const msg = (r as any).meta?.error?.message;
+          throw new Error(msg ?? "Product not found");
+        }
+        return r.data;
+      }),
     enabled: !!slug,
     staleTime: 1000 * 60 * 5,
-  })
+  });
 }
 
 export function useRecentlyViewed(enabled: boolean = true) {
@@ -75,7 +87,7 @@ export function useRecentlyViewed(enabled: boolean = true) {
     queryFn: () => productService.getRecentlyViewed().then((r) => r.data),
     enabled,
     staleTime: 1000 * 60 * 5,
-  })
+  });
 }
 
 // ============================================================
@@ -87,15 +99,22 @@ export function useCategories() {
     queryKey: categoryKeys.list(),
     queryFn: () => categoryService.list().then((r) => r.data),
     staleTime: 1000 * 60 * 10, // 10 min
-  })
+  });
 }
 
 export function useCategory(slug: string) {
   return useQuery({
     queryKey: categoryKeys.detail(slug),
-    queryFn: () => categoryService.getBySlug(slug).then((r) => r.data),
+    queryFn: () =>
+      categoryService.getBySlug(slug).then((r) => {
+        if (!r.success || !r.data) {
+          const msg = (r as any).meta?.error?.message;
+          throw new Error(msg ?? "Category not found");
+        }
+        return r.data;
+      }),
     enabled: !!slug,
-  })
+  });
 }
 
 // ============================================================
@@ -108,84 +127,100 @@ export function useCart(enabled: boolean = true) {
     queryFn: () =>
       cartService.get().then((r) => {
         if (!r.success || !r.data) {
-          const msg = (r as any).meta?.error?.message
-          throw new Error(msg ?? 'Failed to fetch cart')
+          const msg = (r as any).meta?.error?.message;
+          throw new Error(msg ?? "Failed to fetch cart");
         }
-        return r.data
+        return r.data;
       }),
     enabled,
     staleTime: 0, // always fresh
-  })
+  });
 }
 
 export function useAddToCart() {
-  const queryClient = useQueryClient()
-  const showToast = useUIStore((s) => s.showToast)
+  const queryClient = useQueryClient();
+  const showToast = useUIStore((s) => s.showToast);
 
   return useMutation({
     mutationFn: (data: AddCartItemInput) => {
-      const parsed = addCartItemSchema.parse(data)
-      return cartService.addItem(parsed)
+      const parsed = addCartItemSchema.parse(data);
+      return cartService.addItem(parsed);
     },
     onMutate: async (data: AddCartItemInput) => {
-      await queryClient.cancelQueries({ queryKey: cartKeys.current() })
-      const previous = queryClient.getQueryData(cartKeys.current())
+      await queryClient.cancelQueries({ queryKey: cartKeys.current() });
+      const previous = queryClient.getQueryData(cartKeys.current());
 
-      queryClient.setQueryData(cartKeys.current(), (old: { items: unknown[]; subtotal: number } | undefined) => {
-        if (!old) return old
-        return {
-          ...old,
-          items: [...old.items, { productId: data.productId, variantId: data.variantId, quantity: data.quantity }],
-        }
-      })
+      queryClient.setQueryData(
+        cartKeys.current(),
+        (old: { items: unknown[]; subtotal: number } | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: [
+              ...old.items,
+              {
+                productId: data.productId,
+                variantId: data.variantId,
+                quantity: data.quantity,
+              },
+            ],
+          };
+        },
+      );
 
-      return { previous }
+      return { previous };
     },
     onError: (err, _vars, context: { previous: unknown } | undefined) => {
-      console.error('Failed to add to cart:', err)
+      console.error("Failed to add to cart:", err);
       if (context?.previous) {
-        queryClient.setQueryData(cartKeys.current(), context.previous)
+        queryClient.setQueryData(cartKeys.current(), context.previous);
       }
-      showToast('Gagal menambahkan ke keranjang', 'error')
+      showToast("Gagal menambahkan ke keranjang", "error");
     },
     onSuccess: () => {
-      showToast('Berhasil ditambahkan ke keranjang', 'success')
+      showToast("Berhasil ditambahkan ke keranjang", "success");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.current() })
+      queryClient.invalidateQueries({ queryKey: cartKeys.current() });
     },
-  })
+  });
 }
 
 export function useUpdateCartItem() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ itemId, data }: { itemId: string; data: UpdateCartItemInput }) => {
-      const parsed = updateCartItemSchema.parse(data)
-      return cartService.updateItem(itemId, parsed)
+    mutationFn: ({
+      itemId,
+      data,
+    }: {
+      itemId: string;
+      data: UpdateCartItemInput;
+    }) => {
+      const parsed = updateCartItemSchema.parse(data);
+      return cartService.updateItem(itemId, parsed);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.current() })
+      queryClient.invalidateQueries({ queryKey: cartKeys.current() });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.current() })
+      queryClient.invalidateQueries({ queryKey: cartKeys.current() });
     },
-  })
+  });
 }
 
 export function useRemoveCartItem() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (itemId: string) => cartService.removeItem(itemId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.current() })
+      queryClient.invalidateQueries({ queryKey: cartKeys.current() });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.current() })
+      queryClient.invalidateQueries({ queryKey: cartKeys.current() });
     },
-  })
+  });
 }
 
 // ============================================================
@@ -193,6 +228,6 @@ export function useRemoveCartItem() {
 // ============================================================
 
 export function useProductWithTracking(slug: string) {
-  const { data, isLoading, error } = useProduct(slug)
-  return { product: data, isLoading, error }
+  const { data, isLoading, error } = useProduct(slug);
+  return { product: data, isLoading, error };
 }

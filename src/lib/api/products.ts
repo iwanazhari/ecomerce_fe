@@ -2,13 +2,18 @@
  * Product & Category Adapter — Express backend API → frontend types.
  *
  * Endpoints:
- * - GET /api/products        (list with pagination, search, category filter)
- * - GET /api/products/:id    (detail with variants, images, categories)
+ * - GET /api/api/products        (list with pagination, search, category filter)
+ * - GET /api/api/products/:id    (detail with variants, images, categories)
  */
 
-import { api } from '@/lib/api/client'
-import { mapBackendProduct, mapBackendCategory } from '@/lib/api/mappers'
-import type { Product, Category, ProductListParams, ApiResponse } from '@/types'
+import { api } from "@/lib/api/client";
+import { mapBackendProduct, mapBackendCategory } from "@/lib/api/mappers";
+import type {
+  Product,
+  Category,
+  ProductListParams,
+  ApiResponse,
+} from "@/types";
 
 // ─────────────────────────────────────────────
 // Products
@@ -18,24 +23,28 @@ export async function listProducts(
   params: ProductListParams = {},
 ): Promise<ApiResponse<Product[]>> {
   try {
-    const result = await api.get<Record<string, unknown>>('/products', {
-      page: params.offset && params.limit
-        ? Math.floor(params.offset / params.limit) + 1
-        : 1,
+    const result = await api.get<Record<string, unknown>>("products", {
+      page:
+        params.offset && params.limit
+          ? Math.floor(params.offset / params.limit) + 1
+          : 1,
       limit: params.limit ?? 20,
       ...(params.category && { category: params.category }),
       ...(params.search && { search: params.search }),
-    })
+    });
 
     if (!result.success || !result.data) {
-      return { success: false, data: [], meta: result.meta } as any
+      return { success: false, data: [], meta: result.meta } as any;
     }
 
-    const data = result.data as Record<string, unknown>
-    const productsRaw = (data.products ?? data.items ?? []) as Record<string, unknown>[]
-    const pagination = data.pagination as Record<string, unknown> | undefined
+    const data = result.data as Record<string, unknown>;
+    const productsRaw = (data.products ?? data.items ?? []) as Record<
+      string,
+      unknown
+    >[];
+    const pagination = data.pagination as Record<string, unknown> | undefined;
 
-    const mapped = productsRaw.map((p) => mapBackendProduct(p))
+    const mapped = productsRaw.map((p) => mapBackendProduct(p));
 
     return {
       success: true,
@@ -45,13 +54,13 @@ export async function listProducts(
         page: (pagination?.page as number) ?? 1,
         limit: (pagination?.limit as number) ?? 20,
       },
-    }
+    };
   } catch (error: any) {
     return {
       success: false,
       data: [],
-      meta: { error: { code: 'PRODUCT_LIST_FAILED', message: error.message } },
-    } as any
+      meta: { error: { code: "PRODUCT_LIST_FAILED", message: error.message } },
+    } as any;
   }
 }
 
@@ -59,57 +68,67 @@ export async function getProductBySlug(
   slug: string,
 ): Promise<ApiResponse<Product>> {
   try {
-    // First, search for the product by slug via the list endpoint
-    const listResult = await listProducts({ search: slug, limit: 50 })
+    // Backend search doesn't support slug matching, so fetch products
+    // and filter client-side by slug (handle field from backend)
+    const listResult = await listProducts({ limit: 100 });
 
     if (!listResult.success) {
-      return listResult as any
+      return listResult as any;
     }
 
-    // Find exact match by slug/handle
-    const product = listResult.data.find((p) => p.slug === slug)
+    // Find exact match by slug
+    const product = listResult.data.find((p) => p.slug === slug);
     if (!product) {
-      // Fall back: try fetching by ID if slug looks like an ID
-      return getProductById(slug)
+      return {
+        success: false,
+        data: undefined as any,
+        meta: {
+          error: { code: "PRODUCT_NOT_FOUND", message: "Product not found" },
+        },
+      } as any;
     }
 
-    return { success: true, data: product }
+    return { success: true, data: product };
   } catch (error: any) {
     return {
       success: false,
       data: undefined as any,
-      meta: { error: { code: 'PRODUCT_NOT_FOUND', message: error.message } },
-    } as any
+      meta: { error: { code: "PRODUCT_NOT_FOUND", message: error.message } },
+    } as any;
   }
 }
 
 async function getProductById(id: string): Promise<ApiResponse<Product>> {
   try {
-    const result = await api.get<Record<string, unknown>>(`/products/${id}`)
+    const result = await api.get<Record<string, unknown>>(`products/${id}`);
 
     if (!result.success || !result.data) {
-      return { success: false, data: undefined as any, meta: result.meta } as any
+      return {
+        success: false,
+        data: undefined as any,
+        meta: result.meta,
+      } as any;
     }
 
-    const data = result.data as Record<string, unknown>
-    const productRaw = (data.product ?? data) as Record<string, unknown>
+    const data = result.data as Record<string, unknown>;
+    const productRaw = (data.product ?? data) as Record<string, unknown>;
 
     return {
       success: true,
       data: mapBackendProduct(productRaw),
-    }
+    };
   } catch (error: any) {
     return {
       success: false,
       data: undefined as any,
-      meta: { error: { code: 'PRODUCT_NOT_FOUND', message: error.message } },
-    } as any
+      meta: { error: { code: "PRODUCT_NOT_FOUND", message: error.message } },
+    } as any;
   }
 }
 
 export async function getRecentlyViewed(): Promise<ApiResponse<Product[]>> {
   // TODO: Implement via localStorage product IDs + batch fetch
-  return { success: true, data: [] }
+  return { success: true, data: [] };
 }
 
 // ─────────────────────────────────────────────
@@ -117,38 +136,38 @@ export async function getRecentlyViewed(): Promise<ApiResponse<Product[]>> {
 // ─────────────────────────────────────────────
 
 // Cache categories from product listings since there's no dedicated category endpoint
-let cachedCategories: Category[] | null = null
+let cachedCategories: Category[] | null = null;
 
 export async function listCategories(): Promise<ApiResponse<Category[]>> {
   try {
     if (cachedCategories) {
-      return { success: true, data: cachedCategories }
+      return { success: true, data: cachedCategories };
     }
 
     // Fetch products to extract categories
-    const result = await listProducts({ limit: 50 })
+    const result = await listProducts({ limit: 50 });
     if (!result.success) {
-      return result as any
+      return result as any;
     }
 
     // Collect unique categories
-    const categoryMap = new Map<string, Category>()
+    const categoryMap = new Map<string, Category>();
     for (const product of result.data) {
       for (const cat of product.categories) {
         if (!categoryMap.has(cat.id)) {
-          categoryMap.set(cat.id, cat)
+          categoryMap.set(cat.id, cat);
         }
       }
     }
 
-    cachedCategories = Array.from(categoryMap.values())
-    return { success: true, data: cachedCategories }
+    cachedCategories = Array.from(categoryMap.values());
+    return { success: true, data: cachedCategories };
   } catch (error: any) {
     return {
       success: false,
       data: [],
-      meta: { error: { code: 'CATEGORY_LIST_FAILED', message: error.message } },
-    } as any
+      meta: { error: { code: "CATEGORY_LIST_FAILED", message: error.message } },
+    } as any;
   }
 }
 
@@ -156,22 +175,22 @@ export async function getCategoryBySlug(
   slug: string,
 ): Promise<ApiResponse<Category>> {
   try {
-    const catsResult = await listCategories()
+    const catsResult = await listCategories();
     if (!catsResult.success) {
-      return catsResult as any
+      return catsResult as any;
     }
 
-    const cat = catsResult.data.find((c) => c.slug === slug)
+    const cat = catsResult.data.find((c) => c.slug === slug);
     if (!cat) {
-      throw new Error('Category not found')
+      throw new Error("Category not found");
     }
 
-    return { success: true, data: cat }
+    return { success: true, data: cat };
   } catch (error: any) {
     return {
       success: false,
       data: undefined as any,
-      meta: { error: { code: 'CATEGORY_NOT_FOUND', message: error.message } },
-    } as any
+      meta: { error: { code: "CATEGORY_NOT_FOUND", message: error.message } },
+    } as any;
   }
 }
