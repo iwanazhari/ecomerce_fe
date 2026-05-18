@@ -26,8 +26,9 @@ export async function listExpeditions(): Promise<ApiResponse<Record<string, unkn
       return { success: false, data: [], meta: result.meta } as any
     }
 
-    const data = result.data as Record<string, unknown>
-    const expeditions = (data.expeditions ?? data) as Record<string, unknown>[]
+    // Response format: { success: true, data: [...] }
+    // result.data is already the array from the API
+    const expeditions = Array.isArray(result.data) ? result.data : (result.data as any).data ?? []
 
     return { success: true, data: Array.isArray(expeditions) ? expeditions : [] }
   } catch (error: any) {
