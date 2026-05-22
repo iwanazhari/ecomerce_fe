@@ -28,6 +28,17 @@ export function getImageUrl(url: string): string {
     return url;
   }
 
+  // If URL already contains /ecommerce/ path (from backend), use it directly with CDN prefix
+  if (url.includes("/ecommerce/")) {
+    // Extract the /ecommerce/xxx part and prepend CDN URL
+    const match = url.match(/\/ecommerce\/.+/);
+    if (match && CDN_URL) {
+      // match[0] is like "/ecommerce/xxx.jpg", we need to add it to CDN URL with slash
+      return `${CDN_URL}${match[0]}`; // Keep the leading slash
+    }
+    return url;
+  }
+
   // No CDN configured — fall back to backend static serving
   if (!CDN_URL) {
     if (url.startsWith("/")) {

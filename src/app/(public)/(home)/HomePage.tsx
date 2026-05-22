@@ -245,9 +245,9 @@ function FeaturedProductCard({ product }: { product: Product }) {
   const hasDiscount =
     variant?.comparePrice && variant.comparePrice > variant.price;
   const discountPercent = hasDiscount
-    ? Math.round(
-        ((variant!.comparePrice! - variant!.price) / variant!.comparePrice!) *
-          100,
+    ? Math.floor(
+        (((variant!.comparePrice! - variant!.price) / variant!.comparePrice!) *
+          100) + 0.5
       )
     : 0;
 

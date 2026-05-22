@@ -9,6 +9,8 @@ import {
 } from "@/services/medusa-admin.service";
 import { formatCurrency, parseCurrency } from "@/utils";
 import { cn } from "@/lib/utils";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { Pagination } from "@/components/ui/data-pagination";
 import {
   Button,
   Input,
@@ -42,12 +44,16 @@ type MedusaProduct = {
   description?: string;
   thumbnail?: string;
   status?: string;
+  isActive?: boolean; // Express backend uses isActive
   created_at?: string;
   variants?: {
     id: string;
     title: string;
     sku?: string;
+    price?: string | number; // Express backend returns price directly
     prices?: { amount: number; currency_code: string }[];
+    inventory?: number; // Express backend returns inventory directly
+    inventory_quantity?: number;
     inventory_items?: { inventory_item_id: string }[];
   }[];
   images?: { id: string; url: string; alt?: string }[];
@@ -72,23 +78,23 @@ type DisplayProduct = {
 
 function mapProduct(p: MedusaProduct): DisplayProduct {
   const firstVariant = p.variants?.[0];
-  const firstPrice = firstVariant?.prices?.[0];
-  // Compute total stock from inventory items
-  let totalStock = 0;
-  if (firstVariant?.inventory_items?.[0]?.inventory_item_id) {
-    // Stock will be computed separately if needed
-  }
+
+  // Express backend returns price directly on variant, not nested in prices array
+  const variantPrice = firstVariant?.price ?? firstVariant?.prices?.[0]?.amount;
+  const priceNum = typeof variantPrice === "string" ? parseInt(variantPrice, 10) : variantPrice;
+
   return {
     id: p.id,
     name: p.title,
     slug: p.handle,
-    price: firstPrice?.amount ?? 0,
+    price: priceNum ?? 0,
     thumbnail: p.thumbnail ?? p.images?.[0]?.url,
-    status: p.status ?? "draft",
+    // Convert isActive (backend) to status (frontend)
+    status: p.isActive ? "published" : "draft",
     variantCount: p.variants?.length ?? 0,
     imageCount: p.images?.length ?? 0,
     category: p.categories?.[0]?.name,
-    stock: 0,
+    stock: firstVariant?.inventory ?? firstVariant?.inventory_quantity ?? 0,
     description: p.description,
     sku: firstVariant?.sku,
     categoryId: p.categories?.[0]?.id,
@@ -117,6 +123,8 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [selectedProduct, setSelectedProduct] = useState<DisplayProduct | null>(
@@ -125,6 +133,7 @@ export default function AdminProductsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
+  const [pendingRefetch, setPendingRefetch] = useState(false); // Track pending refetch after save
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -135,7 +144,7 @@ export default function AdminProductsPage() {
   const [formCategoryId, setFormCategoryId] = useState("");
   const [formImages, setFormImages] = useState<UploadedImage[]>([]);
   const [formStatus, setFormStatus] = useState<"draft" | "published">(
-    "published",
+    "published", // Default to published (active) for new products
   );
   const [formStock, setFormStock] = useState("0");
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -167,14 +176,21 @@ export default function AdminProductsPage() {
     setFormPrice(formatCurrency(newVal));
   };
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (skipCache = false) => {
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        adminProducts.list({ limit: 50, search: search || undefined }),
+        adminProducts.list({
+          page: currentPage,
+          limit: pageSize,
+          search: search || undefined,
+          ...(skipCache && { _t: Date.now().toString() }), // Cache busting
+        }),
         adminCategories.list(),
       ]);
-      setProducts(((productsRes.data as any) ?? []).map(mapProduct));
-      setTotal(productsRes.meta?.total ?? 0);
+
+      const productsData = (productsRes.data as any) ?? [];
+      setProducts(productsData.map(mapProduct));
+      setTotal(productsRes.meta?.total ?? productsData.length);
       setCategories(
         (categoriesRes.data ?? []).map((c: any) => ({
           id: c.id,
@@ -182,15 +198,64 @@ export default function AdminProductsPage() {
         })),
       );
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch products:", err);
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, currentPage]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // WebSocket listener for real-time product updates
+  useWebSocket("realtime", (data) => {
+    console.log("[WebSocket] realtime event received:", data);
+
+    // Handle stock:updated events - update status badge optimistically
+    if (data?.event === "stock:updated" && data?.data?.productId) {
+      const { productId, isActive } = data.data;
+      const newStatus = isActive === true ? "published" : "draft";
+
+      console.log("[WebSocket] Updating product", productId, "status to:", newStatus);
+      setProducts(prev => prev.map(p => {
+        if (p.id === productId) {
+          return { ...p, status: newStatus };
+        }
+        return p;
+      }));
+
+      // Schedule a refetch after 2 seconds to sync with backend
+      setPendingRefetch(true);
+      setTimeout(() => {
+        console.log("[WebSocket] Executing pending refetch");
+        fetchData(true);
+        setPendingRefetch(false);
+      }, 2000);
+    }
+
+    // Handle cache:invalidated events - refetch data for ALL admin pages
+    if (data?.event === "cache:invalidated") {
+      console.log("[WebSocket] Cache invalidated:", data);
+      
+      // Product cache invalidation - refetch products list
+      if (data?.type === "product") {
+        console.log("[WebSocket] Product cache invalidated, scheduling refetch...");
+        setPendingRefetch(true);
+        setTimeout(() => {
+          console.log("[WebSocket] Refetching products data");
+          fetchData(true);
+          setPendingRefetch(false);
+        }, 1000);
+      }
+      
+      // Order cache invalidation - can be used by orders page
+      if (data?.type === "order") {
+        console.log("[WebSocket] Order cache invalidated");
+        // Orders page can listen to this and refetch
+      }
+    }
+  }, true);
 
   const resetForm = () => {
     setFormTitle("");
@@ -219,35 +284,59 @@ export default function AdminProductsPage() {
     // Set basic display values immediately from the list view data
     setFormTitle(product.name);
     setFormStatus(product.status === "published" ? "published" : "draft");
-    const price = product.price ?? 0;
-    setFormPriceRaw(String(price));
-    setFormPrice(price > 0 ? formatCurrency(price) : "");
     setFormCategoryId(product.categoryId ?? "");
     setFormDescription(product.description ?? "");
     setFormSku(product.sku ?? "");
     setFormImages([]);
     setFormStock("0");
+    // Clear price initially - will be set from backend data
+    setFormPrice("");
+    setFormPriceRaw("");
+    
     // Fetch full product details from backend (prices, images, inventory)
     setLoadingProduct(true);
     try {
-      const fullProduct = (await adminProducts.get(product.id)) as any;
+      // Add small delay to ensure DB transaction is committed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Force fresh data from backend (skip any cache)
+      const fullProduct = (await adminProducts.get(product.id, { _t: Date.now().toString() })) as any;
+      
+      console.log("[openEdit] Full product from backend:", {
+        id: fullProduct?.id,
+        title: fullProduct?.title,
+        isActive: fullProduct?.isActive,
+        status: fullProduct?.status,
+      });
+      
       const firstVariant = fullProduct?.variants?.[0];
-      const firstPrice = firstVariant?.prices?.[0];
+
+      // Express backend returns price directly on variant, not nested in prices array
+      const variantPrice = firstVariant?.price ?? firstVariant?.prices?.[0]?.amount;
       const invItemId = firstVariant?.inventory_items?.[0]?.inventory_item_id;
 
-      // Override price with actual data from backend if available
-      if (firstPrice?.amount != null) {
-        setFormPriceRaw(String(firstPrice.amount));
+      // Set price from backend data
+      if (variantPrice != null) {
+        const priceNum = typeof variantPrice === "string" ? parseInt(variantPrice, 10) : variantPrice;
+        setFormPriceRaw(String(priceNum));
         setFormPrice(
-          firstPrice.amount > 0 ? formatCurrency(firstPrice.amount) : "",
+          priceNum > 0 ? formatCurrency(priceNum) : "",
         );
+      } else {
+        // Fallback to list data if backend doesn't have price
+        const price = product.price ?? 0;
+        setFormPriceRaw(String(price));
+        setFormPrice(price > 0 ? formatCurrency(price) : "");
       }
 
-      // Override status with backend data
-      if (fullProduct?.status) {
-        setFormStatus(
-          fullProduct.status === "published" ? "published" : "draft",
-        );
+      // Set status from backend data (convert isActive to status)
+      console.log("[openEdit] Setting formStatus from isActive:", fullProduct?.isActive);
+      if (fullProduct?.isActive !== undefined) {
+        const newStatus = fullProduct.isActive ? "published" : "draft";
+        console.log("[openEdit] Form status set to:", newStatus);
+        setFormStatus(newStatus);
+      } else {
+        console.warn("[openEdit] isActive is undefined, keeping previous status");
       }
 
       setVariantId(firstVariant?.id ?? "");
@@ -263,7 +352,7 @@ export default function AdminProductsPage() {
       );
       setFormImages(existingImages);
 
-      // Use variant's inventory directly (no separate inventory API)
+      // Use variant's inventory directly (Express backend returns inventory on variant)
       if (firstVariant?.inventory != null) {
         setFormStock(String(firstVariant.inventory));
       } else if (firstVariant?.inventory_quantity != null) {
@@ -280,6 +369,7 @@ export default function AdminProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormSubmitting(true);
+    console.log("[DEBUG handleSubmit] modalMode:", modalMode, "formImages:", JSON.stringify(formImages, null, 2), "formImages.length:", formImages.length);
     try {
       if (modalMode === "create") {
         const priceNum = parseInt(formPriceRaw) || 0;
@@ -287,45 +377,60 @@ export default function AdminProductsPage() {
         const primaryImage =
           formImages.find((i) => i.isPrimary) ?? formImages[0];
 
-        const product = await adminProducts.create({
+        // Send uploaded images to backend
+        await adminProducts.create({
           title: formTitle,
           description: formDescription || undefined,
           status: formStatus as any,
           ...(formCategoryId && { categories: [{ id: formCategoryId }] }),
-          ...(primaryImage && { thumbnail: primaryImage.url }),
-          ...(formImages.length > 0 && {
-            images: formImages.map((i) => ({ url: i.url })),
-          }),
           price: priceNum,
           inventory: stockNum,
+          images: formImages.map((img, index) => ({
+            id: img.id,
+            url: img.url,
+            isPrimary: index === 0, // First image is primary
+          })),
         } as any);
-
-        // Inventory is managed via product variant updates in the Express backend
-        // No separate inventory item management needed
       } else if (selectedProduct) {
         const priceNum = parseInt(formPriceRaw) || 0;
         const stockNum = parseInt(formStock) || 0;
-        const primaryImage =
-          formImages.find((i) => i.isPrimary) ?? formImages[0];
 
-        // Update product details
-        await adminProducts.update(selectedProduct.id, {
+        // Update product details — send images directly via apiRequest to bypass service layer bug
+        const updatePayload: any = {
           title: formTitle,
           description: formDescription || undefined,
           status: formStatus,
           ...(formCategoryId
             ? { categories: [{ id: formCategoryId }] }
             : { categories: [] }),
-          thumbnail: primaryImage?.url,
           price: priceNum,
           inventory: stockNum,
-          ...(formImages.length > 0 && {
-            images: formImages.map((i) => ({ url: i.url })),
-          }),
-        } as any);
+        };
+        if (formImages.length > 0) {
+          // Send both id (for existing) and url for all images
+          updatePayload.images = formImages.map((img, index) => ({
+            id: img.id, // Include id for existing images
+            url: img.url,
+            isPrimary: index === 0, // First image is primary
+          }));
+        }
+        console.log("[handleSubmit] Direct update payload:", JSON.stringify(updatePayload, null, 2));
+        await adminProducts.update(selectedProduct.id, updatePayload);
       }
       setModalOpen(false);
-      fetchData();
+
+      // Optimistic update: langsung update produk di list
+      if (selectedProduct) {
+        setProducts(prev => prev.map(p =>
+          p.id === selectedProduct.id
+            ? { ...p, status: formStatus }
+            : p
+        ));
+        console.log("[handleSubmit] Updated product status in list:", formStatus);
+
+        // Don't refetch immediately - let WebSocket handle it after cache invalidation
+        // The WebSocket event will trigger fetchData after 2 seconds when justSaved expires
+      }
     } catch (err: any) {
       alert("Gagal: " + (err.message ?? "Unknown error"));
     } finally {
@@ -480,6 +585,15 @@ export default function AdminProductsPage() {
           </table>
         </div>
       </Card>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={Math.ceil(total / pageSize)}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={(page) => setCurrentPage(page)}
+      />
 
       {/* Create/Edit Modal */}
       <Modal

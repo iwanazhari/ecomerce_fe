@@ -10,6 +10,7 @@ import {
   adminInventory,
   adminProducts,
 } from "@/services/medusa-admin.service";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import {
   StatCard,
   Card,
@@ -64,7 +65,33 @@ type LowStockItem = {
   quantity: number;
 };
 
-function mapOrder(order: MedusaOrder): DashboardOrder {
+function mapOrder(order: MedusaOrder & { paymentStatus?: string; payment?: { transactionStatus?: string } }): DashboardOrder {
+  // Map payment status with priority: paymentStatus > payment.transactionStatus > payment_status
+  const backendPaymentStatus = (order as any).paymentStatus;
+  const paymentTransactionStatus = order.payment?.transactionStatus;
+  
+  const paymentStatusMap: Record<string, string> = {
+    PAID: "paid",
+    PENDING: "awaiting",
+    FAILED: "not_paid",
+    REFUNDED: "refunded",
+    settlement: "paid",      // Midtrans
+    capture: "paid",         // Midtrans
+    authorize: "awaiting",   // Midtrans
+    deny: "not_paid",        // Midtrans
+    expire: "not_paid",      // Midtrans
+    cancel: "not_paid",      // Midtrans
+  };
+  
+  let mappedPaymentStatus = "not_paid";
+  if (backendPaymentStatus) {
+    mappedPaymentStatus = paymentStatusMap[backendPaymentStatus] ?? "not_paid";
+  } else if (paymentTransactionStatus) {
+    mappedPaymentStatus = paymentStatusMap[paymentTransactionStatus] ?? "not_paid";
+  } else if (order.payment_status) {
+    mappedPaymentStatus = paymentStatusMap[order.payment_status] ?? "not_paid";
+  }
+
   return {
     id: order.id,
     orderNumber:
@@ -79,7 +106,7 @@ function mapOrder(order: MedusaOrder): DashboardOrder {
     total: order.total ?? 0,
     status: order.status ?? "pending",
     fulfillmentStatus: order.fulfillment_status ?? "not_fulfilled",
-    paymentStatus: order.payment_status ?? "not_paid",
+    paymentStatus: mappedPaymentStatus,
   };
 }
 
@@ -141,43 +168,73 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [overview, ordersRes, productsRes, lowStock] = await Promise.all([
-          adminAnalytics.getOverview(),
-          adminOrders.list({ limit: 5 }),
-          adminProducts.list({ limit: 1 }),
-          adminInventory.getLowStock(10),
-        ]);
-        setRevenue(overview.totalRevenue ?? 0);
-        setTotalOrders(overview.totalOrders ?? 0);
-        setTotalCustomers(overview.totalCustomers ?? 0);
-        setTotalProducts(productsRes.meta?.total ?? 0);
-        setRecentOrders((ordersRes.data ?? []).map(mapOrder));
-        const mapped: LowStockItem[] = (lowStock.data ?? []).map(
-          (item: any) => ({
-            id: item.id,
-            productName: item.title ?? item.product?.title ?? "Produk",
-            sku: item.sku ?? undefined,
-            quantity:
-              item.location_levels?.reduce(
-                (sum: number, loc: any) => sum + (loc.stocked_quantity ?? 0),
-                0,
-              ) ??
-              item.stocked_quantity ??
+  // Fetch dashboard data
+  const fetchData = async () => {
+    try {
+      const [overview, ordersRes, productsRes, lowStock] = await Promise.all([
+        adminAnalytics.getOverview(),
+        adminOrders.list({ limit: 5 }),
+        adminProducts.list({ limit: 1 }),
+        adminInventory.getLowStock(10),
+      ]);
+      setRevenue(overview.totalRevenue ?? 0);
+      setTotalOrders(overview.totalOrders ?? 0);
+      setTotalCustomers(overview.totalCustomers ?? 0);
+      setTotalProducts(productsRes.meta?.total ?? 0);
+      setRecentOrders((ordersRes.data ?? []).map(mapOrder));
+      const mapped: LowStockItem[] = (lowStock.data ?? []).map(
+        (item: any) => ({
+          id: item.id,
+          productName: item.title ?? item.product?.title ?? "Produk",
+          sku: item.sku ?? undefined,
+          quantity:
+            item.location_levels?.reduce(
+              (sum: number, loc: any) => sum + (loc.stocked_quantity ?? 0),
               0,
-          }),
-        );
-        setLowStockItems(mapped);
-      } catch (err: any) {
-        setError(err.message ?? "Gagal memuat data");
-      } finally {
-        setLoading(false);
-      }
-    };
+            ) ??
+            item.stocked_quantity ??
+            0,
+        })
+      );
+      setLowStockItems(mapped);
+    } catch (err: any) {
+      setError(err.message ?? "Gagal memuat data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
+
+  // WebSocket listener for real-time dashboard updates
+  useWebSocket("realtime", (data) => {
+    console.log("[Dashboard] realtime event received:", data);
+
+    // Handle cache:invalidated events - refetch dashboard data
+    if (data?.event === "cache:invalidated") {
+      console.log("[Dashboard] Cache invalidated:", data.type);
+      
+      // Refetch dashboard if product, order, or inventory cache is invalidated
+      if (data?.type === "product" || data?.type === "order" || data?.type === "inventory") {
+        console.log("[Dashboard] Refetching dashboard data...");
+        fetchData();
+      }
+    }
+
+    // Handle stock:updated events - update dashboard stats
+    if (data?.event === "stock:updated") {
+      console.log("[Dashboard] Stock updated, refetching...");
+      fetchData();
+    }
+
+    // Handle order events - update orders list and stats
+    if (data?.event && ["order:updated", "order:created", "order:cancelled", "payment:success"].includes(data.event)) {
+      console.log("[Dashboard] Order event:", data.event);
+      fetchData();
+    }
+  }, true);
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useMemo } from 'react'
+import { createContext, useContext, useMemo, useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProfile } from '@/hooks/useAuth'
 import { tokenStorage } from '@/services/api/client'
@@ -24,30 +24,41 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 function isTokenExpired(token: string): boolean {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
-    const expiry = payload.exp * 1000 // Convert to milliseconds
+    const expiry = payload.exp * 1000
     return Date.now() >= expiry
   } catch {
-    return true // Invalid token format
+    return true
   }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
-  const token = typeof window !== 'undefined' ? tokenStorage.getAccessToken() : null
-  const hasToken = !!token
+  const [isClient, setIsClient] = useState(false)
 
-  // Check if token is expired before making profile request
-  const tokenIsValid = hasToken && !isTokenExpired(token)
-  const profileEnabled = tokenIsValid
+  // Ensure we're on the client before reading tokens
+  // This prevents hydration mismatch between server and client
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
-  const { data: user, isLoading, isError } = useProfile(profileEnabled)
+  // Always call useProfile with the same hook count
+  // Use `enabled` to control whether the query actually runs
+  const shouldFetchProfile = isClient && (() => {
+    const token = tokenStorage.getAccessToken()
+    return !!token && !isTokenExpired(token)
+  })()
 
-  // Only clear tokens if they're actually expired (not just on fetch failure)
-  // This prevents logout on temporary network issues or profile fetch delays
-  if (hasToken && isError && isTokenExpired(token)) {
-    tokenStorage.clearTokens()
-    queryClient.clear()
-  }
+  const { data: user, isLoading, isError } = useProfile(shouldFetchProfile)
+
+  // Clear expired tokens on client
+  useEffect(() => {
+    if (!isClient) return
+    const token = tokenStorage.getAccessToken()
+    if (token && isTokenExpired(token)) {
+      tokenStorage.clearTokens()
+      queryClient.clear()
+    }
+  }, [isClient, queryClient])
 
   const value = useMemo<AuthContextValue>(() => {
     if (!user || isError) {

@@ -82,12 +82,16 @@ export function ImageUpload({
 
       if (validFiles.length === 0) return;
 
-      // Create local preview URLs
-      const newPreviewUrls: Record<string, string> = {};
-      validFiles.forEach((file, i) => {
-        newPreviewUrls[`temp-${i}`] = URL.createObjectURL(file);
-      });
-      setPreviewUrls((prev) => ({ ...prev, ...newPreviewUrls }));
+      // Create local preview URLs for immediate feedback
+      const newImages: UploadedImage[] = validFiles.map((file, i) => ({
+        id: `temp-${Date.now()}-${i}`,
+        url: URL.createObjectURL(file),
+        isPrimary: images.length === 0 && i === 0,
+      }));
+
+      const updated = [...images, ...newImages];
+      setImages(updated);
+      onChange?.(updated);
 
       setUploading(true);
       setUploadProgress(0);
@@ -99,22 +103,25 @@ export function ImageUpload({
           url: string;
         }[];
 
-        // Convert to our image format
-        const newImages: UploadedImage[] = (result ?? []).map((f) => ({
+        // Replace temp images with uploaded ones
+        const uploadedImages: UploadedImage[] = (result ?? []).map((f, i) => ({
           id: f.id,
           url: f.url,
-          isPrimary: images.length === 0 && result.length === 1, // First image becomes primary
+          isPrimary: updated.length > 0 ? updated[0].isPrimary : i === 0,
         }));
 
-        const updated = [...images, ...newImages];
-        setImages(updated);
-        onChange?.(updated);
+        // Remove temp images and add uploaded ones
+        const final = [...updated.slice(0, -newImages.length), ...uploadedImages];
+        setImages(final);
+        onChange?.(final);
 
-        // Clean up preview URLs
-        Object.values(newPreviewUrls).forEach(URL.revokeObjectURL);
         setUploadProgress(100);
       } catch (err: any) {
         setError(err.message ?? "Gagal upload gambar");
+        // Revert to previous state on error
+        const reverted = updated.slice(0, -newImages.length);
+        setImages(reverted);
+        onChange?.(reverted);
       } finally {
         setUploading(false);
       }
@@ -178,11 +185,10 @@ export function ImageUpload({
     [handleFiles],
   );
 
-  const displayImages = images.map((img) => {
-    // Use local preview URL for newly uploaded images
-    const previewUrl = previewUrls[img.id];
-    return { ...img, displayUrl: previewUrl || img.url };
-  });
+  const displayImages = images.map((img) => ({
+    ...img,
+    displayUrl: img.url,
+  }));
 
   return (
     <div className={cn("flex flex-col gap-3 w-full", className)}>

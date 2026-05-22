@@ -19,11 +19,19 @@ export function useWebSocket(
     if (!enabled) return
 
     const socket = getSocket()
-    if (!socket.connected) return
+    console.log('[useWebSocket] Subscribing to event:', event, 'Socket connected:', socket.connected)
+    
+    if (!socket.connected) {
+      console.log('[useWebSocket] Socket not connected, attempting connect...')
+      socket.connect()
+    }
 
     socket.on(event, handlerRef.current)
+    console.log('[useWebSocket] Subscribed to:', event)
+    
     return () => {
       socket.off(event, handlerRef.current)
+      console.log('[useWebSocket] Unsubscribed from:', event)
     }
   }, [event, enabled])
 

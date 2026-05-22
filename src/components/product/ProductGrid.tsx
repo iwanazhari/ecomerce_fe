@@ -5,7 +5,7 @@ import { useProducts, useCategories } from '@/hooks'
 import { useDebounce } from '@/hooks/useDebounce'
 import { ProductCard } from '@/components/product/ProductCard'
 import { CardSkeleton, ListSkeleton } from '@/components/ui/Skeleton'
-import { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext } from '@/components/ui'
+import { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import type { Product, Category } from '@/types'
 
@@ -50,9 +50,15 @@ export function ProductGrid({
     offset: (page - 1) * PAGE_SIZE,
   })
   
-  // Use initial categories or fetch from API
   const { data: categoriesData } = useCategories()
   const categories = initialCategories.length > 0 ? initialCategories : (categoriesData || [])
+
+  const handleClearFilters = useCallback(() => {
+    setSearch('')
+    setCategory('')
+    setSort('newest')
+    setPage(1)
+  }, [])
 
   // Use server-rendered data on first load, then switch to client data
   const productList = (products?.data ?? initialProducts) 
@@ -68,27 +74,12 @@ export function ProductGrid({
     )
   }
 
-  const handleClearFilters = useCallback(() => {
-    setSearch('')
-    setCategory('')
-    setSort('newest')
-    setPage(1)
-  }, [])
-
   const hasFilters = search || category || sort !== 'newest' || page > 1
 
   // Reset page when filters change
   const handleSearch = (value: string) => { setSearch(value); setPage(1) }
   const handleCategory = (value: string) => { setCategory(value); setPage(1) }
   const handleSort = (value: typeof sort) => { setSort(value); setPage(1) }
-
-  if (productsLoading) {
-    return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        <ListSkeleton count={10} />
-      </div>
-    )
-  }
 
   return (
     <div>
@@ -185,54 +176,6 @@ export function ProductGrid({
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-8 flex justify-center">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); if (page > 1) setPage(page - 1) }}
-                  className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
-                />
-              </PaginationItem>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter((p) => {
-                  // Show first, last, current, and neighbors
-                  if (p === 1 || p === totalPages) return true
-                  if (Math.abs(p - page) <= 1) return true
-                  return false
-                })
-                .map((p, idx, arr) => (
-                  <PaginationItem key={p}>
-                    {idx > 0 && arr[idx - 1] !== p - 1 && (
-                      <span className="px-2 text-foreground-subtle">...</span>
-                    )}
-                    <PaginationLink
-                      href="#"
-                      isActive={p === page}
-                      onClick={(e) => { e.preventDefault(); setPage(p) }}
-                    >
-                      {p}
-                    </PaginationLink>
-                    {idx < arr.length - 1 && arr[idx + 1] !== p + 1 && (
-                      <span className="px-2 text-foreground-subtle">...</span>
-                    )}
-                  </PaginationItem>
-                ))}
-
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); if (page < totalPages) setPage(page + 1) }}
-                  className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
     </div>
   )
 }

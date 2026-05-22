@@ -107,7 +107,7 @@ export function mapBackendProduct(product: Record<string, unknown>): Product {
     description: (product.description as string | null) ?? null,
     shortDescription: null,
     thumbnail: (product.thumbnail as string) ?? undefined,
-    status: (product.isActive as boolean) === false ? "INACTIVE" : "ACTIVE",
+    status: (product.isActive as boolean) === false ? "draft" : "published",
     brand: null,
     weight: null,
     isActive: (product.isActive as boolean) ?? true,
@@ -217,7 +217,7 @@ export function mapBackendCartItem(
               (item.thumbnail as string) ??
               (productRaw.thumbnail as string) ??
               undefined,
-            status: "ACTIVE" as const,
+            status: "published" as const,
             brand: null,
             weight: null,
             isActive: true,
@@ -408,7 +408,7 @@ export function mapBackendOrderItem(item: Record<string, unknown>): OrderItem {
             description: null,
             shortDescription: null,
             thumbnail: (productRaw.thumbnail as string) ?? undefined,
-            status: "ACTIVE" as const,
+            status: "published" as const,
             brand: null,
             weight: null,
             isActive: true,

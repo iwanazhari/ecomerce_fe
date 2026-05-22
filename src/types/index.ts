@@ -104,7 +104,7 @@ export interface UpdateAddressInput extends Partial<CreateAddressInput> {}
 // Product
 // ============================================================
 
-export type ProductStatus = "DRAFT" | "ACTIVE" | "INACTIVE" | "ARCHIVED";
+export type ProductStatus = "draft" | "published" | "inactive" | "archived";
 
 export interface ProductVariant {
   id: string;

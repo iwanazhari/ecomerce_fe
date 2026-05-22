@@ -3,7 +3,7 @@ module.exports = {
     name: 'ecom-frontend',
     script: 'node',
     args: 'node_modules/next/dist/bin/next start -p 8000',
-    cwd: '/var/www/shop-waterpro',
+    cwd: '/var/www/store-waterpro',
     instances: 1,
     exec_mode: 'fork',
     autorestart: true,

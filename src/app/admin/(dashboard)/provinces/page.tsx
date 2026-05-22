@@ -18,6 +18,15 @@ type Province = {
   code?: string;
 };
 
+// Map backend response (province, type) to frontend format (name, code)
+function mapProvince(data: Record<string, unknown>): Province {
+  return {
+    id: (data.id as string) ?? "",
+    name: (data.province as string) ?? (data.name as string) ?? "",
+    code: (data.type as string) ?? (data.code as string) ?? "",
+  };
+}
+
 export default function AdminProvincesPage() {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,8 +44,9 @@ export default function AdminProvincesPage() {
   const fetchData = useCallback(async () => {
     try {
       const res = await adminProvinces.list();
-      setProvinces((res.data as any) ?? []);
-      setTotal((res as any).total ?? 0);
+      const rawData = (res.data as any) ?? [];
+      setProvinces(Array.isArray(rawData) ? rawData.map(mapProvince) : []);
+      setTotal((res as any).total ?? rawData.length ?? 0);
     } catch (err) {
       console.error(err);
     } finally {
@@ -147,9 +157,6 @@ export default function AdminProvincesPage() {
                 <th className="px-6 py-4 text-left text-xs font-bold text-foreground-muted uppercase tracking-wider shadow-inset-small">
                   Nama Provinsi
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-foreground-muted uppercase tracking-wider shadow-inset-small">
-                  Kode
-                </th>
                 <th className="px-6 py-4 text-right text-xs font-bold text-foreground-muted uppercase tracking-wider shadow-inset-small">
                   Aksi
                 </th>
@@ -159,7 +166,7 @@ export default function AdminProvincesPage() {
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={3}
+                    colSpan={2}
                     className="p-12 text-center text-foreground-muted"
                   >
                     <MapPin className="size-10 mx-auto mb-3 text-foreground-subtle" />
@@ -174,9 +181,7 @@ export default function AdminProvincesPage() {
                   >
                     <td className="px-6 py-4">
                       <p className="font-bold text-foreground">{p.name}</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-mono text-foreground-muted">
-                      {p.code || "-"}
+                      <p className="text-xs text-foreground-muted">{p.code}</p>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">

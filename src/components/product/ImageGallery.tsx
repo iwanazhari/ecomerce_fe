@@ -34,7 +34,7 @@ export function ImageGallery({
         'flex items-center justify-center bg-background text-6xl font-light text-foreground-subtle',
         aspect === 'wide' ? 'aspect-video' : 'aspect-square',
       )}>
-        {productName.charAt(0)}
+        {productName ? productName[0] : '?'}
       </div>
     )
   }

@@ -85,7 +85,7 @@ export function Footer() {
             {/* Brand */}
             <div className="col-span-2 md:col-span-2 lg:col-span-2">
               <img
-                src="/images/logo.png"
+                src="/logo.png"
                 alt="Waterpro"
                 className="h-8 w-auto brightness-0 invert"
               />

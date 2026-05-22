@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { adminOrders } from "@/services/medusa-admin.service";
 import { formatCurrency, formatDate } from "@/utils";
+import { getSocket, SOCKET_EVENTS } from "@/services/websocket/socket";
 import {
   Button,
   Card,
@@ -17,13 +18,18 @@ import {
   ShoppingCart,
   Search,
   Eye,
-  CheckCircle,
   Truck,
-  Package,
+  Trash2,
+  AlertTriangle,
   XCircle,
+  Loader2,
+  CheckCircle,
+  Package,
   Clock,
   AlertCircle,
 } from "lucide-react";
+
+import { Pagination } from "@/components/ui/data-pagination";
 
 type MedusaOrder = {
   id: string;
@@ -54,6 +60,11 @@ type MedusaOrder = {
   customer?: { email?: string; first_name?: string; last_name?: string } | null;
   fulfillments?: { id: string; status?: string; created_at?: string }[] | null;
   created_at?: string | null;
+  payment?: {
+    id?: string;
+    transactionStatus?: string;
+    amount?: string | number;
+  } | null;
 };
 
 type DisplayOrder = {
@@ -70,7 +81,7 @@ type DisplayOrder = {
   items?: { name: string; quantity: number; price: number }[];
 };
 
-function mapOrder(o: MedusaOrder): DisplayOrder {
+function mapOrder(o: MedusaOrder & { paymentStatus?: string; payment?: { transactionStatus?: string } }): DisplayOrder {
   const customerName =
     [o.customer?.first_name, o.customer?.last_name].filter(Boolean).join(" ") ||
     o.email ||
@@ -79,6 +90,39 @@ function mapOrder(o: MedusaOrder): DisplayOrder {
     [o.shipping_address?.first_name, o.shipping_address?.last_name]
       .filter(Boolean)
       .join(" ") || customerName;
+
+  // Priority 1: Backend Express sends paymentStatus (camelCase) at root level
+  // Priority 2: Read from payment.transactionStatus (nested payment object)
+  // Priority 3: Fallback to payment_status (snake_case)
+  const backendPaymentStatus = (o as any).paymentStatus;
+  const paymentTransactionStatus = o.payment?.transactionStatus;
+  
+  const paymentStatusMap: Record<string, string> = {
+    PAID: "paid",
+    PENDING: "awaiting",
+    FAILED: "not_paid",
+    REFUNDED: "refunded",
+    settlement: "paid",      // Midtrans transaction status
+    capture: "paid",         // Midtrans capture status
+    authorize: "awaiting",   // Midtrans authorize status
+    deny: "not_paid",        // Midtrans deny status
+    expire: "not_paid",      // Midtrans expire status
+    cancel: "not_paid",      // Midtrans cancel status
+  };
+  
+  let mappedPaymentStatus = "not_paid";
+  
+  if (backendPaymentStatus) {
+    // Use root level paymentStatus if available
+    mappedPaymentStatus = paymentStatusMap[backendPaymentStatus] ?? "not_paid";
+  } else if (paymentTransactionStatus) {
+    // Fallback to payment.transactionStatus from Midtrans
+    mappedPaymentStatus = paymentStatusMap[paymentTransactionStatus] ?? "not_paid";
+  } else if (o.payment_status) {
+    // Last fallback to snake_case field
+    mappedPaymentStatus = paymentStatusMap[o.payment_status] ?? "not_paid";
+  }
+
   return {
     id: o.id,
     orderNumber:
@@ -89,7 +133,7 @@ function mapOrder(o: MedusaOrder): DisplayOrder {
     total: o.total ?? o.subtotal ?? 0,
     status: o.status ?? "pending",
     fulfillmentStatus: o.fulfillment_status ?? "not_fulfilled",
-    paymentStatus: o.payment_status ?? "not_paid",
+    paymentStatus: mappedPaymentStatus,
     itemCount: o.items?.length ?? 0,
     createdAt: o.created_at ?? new Date().toISOString(),
     shippingAddress: {
@@ -156,6 +200,8 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
   const [detailOrder, setDetailOrder] = useState<DisplayOrder | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [processModalOpen, setProcessModalOpen] = useState(false);
@@ -163,11 +209,15 @@ export default function AdminOrdersPage() {
     null,
   );
   const [processing, setProcessing] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState<DisplayOrder | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       const res = await adminOrders.list({
-        limit: 50,
+        page: currentPage,
+        limit: pageSize,
         search: search || undefined,
       });
       setOrders(((res.data as any) ?? []).map(mapOrder));
@@ -177,10 +227,39 @@ export default function AdminOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, currentPage]);
 
   useEffect(() => {
     fetchData();
+
+    // Setup WebSocket listener for real-time order updates
+    const socket = getSocket();
+    const socketConnected = socket.connected;
+
+    // Connect socket if not already connected
+    if (!socketConnected) {
+      socket.connect();
+    }
+
+    // Listen for realtime events from Redis bridge
+    const handleOrderEvent = (data: any) => {
+      console.log('🔔 Realtime event received:', data);
+      
+      // Handle order-related events
+      if (data?.event && ['order:updated', 'order:created', 'order:cancelled', 'payment:success'].includes(data.event)) {
+        console.log(`🔔 ${data.event} event:`, data.data);
+        // Delayed refetch to ensure database is updated
+        setTimeout(() => fetchData(), 1000);
+      }
+    };
+
+    socket.on('realtime', handleOrderEvent);
+
+    // Cleanup
+    return () => {
+      socket.off('realtime', handleOrderEvent);
+      // Don't disconnect - keep socket alive for other pages
+    };
   }, [fetchData]);
 
   const handleProcessOrder = async (
@@ -204,6 +283,25 @@ export default function AdminOrdersPage() {
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    setDeleting(true);
+    try {
+      await adminOrders.cancel(orderId);
+      setDeleteModalOpen(false);
+      setDeletingOrder(null);
+      fetchData();
+    } catch (err: any) {
+      alert("Gagal menghapus: " + (err.message ?? "Unknown error"));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openDelete = (order: DisplayOrder) => {
+    setDeletingOrder(order);
+    setDeleteModalOpen(true);
   };
 
   const openDetail = (order: DisplayOrder) => {
@@ -351,6 +449,13 @@ export default function AdminOrdersPage() {
                             <Truck className="size-4" />
                           </button>
                         )}
+                        <button
+                          onClick={() => openDelete(order)}
+                          className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-error active:shadow-inset-deep transition-all"
+                          aria-label="Hapus"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -360,6 +465,15 @@ export default function AdminOrdersPage() {
           </table>
         </div>
       </Card>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={Math.ceil(total / pageSize)}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={(page) => setCurrentPage(page)}
+      />
 
       {/* Order Detail Modal */}
       <Modal
@@ -521,6 +635,67 @@ export default function AdminOrdersPage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        title="Hapus Pesanan"
+        size="md"
+      >
+        {deletingOrder && (
+          <div className="space-y-6">
+            <div className="p-4 rounded-2xl bg-error/10 border border-error/20">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="size-5 text-error shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-foreground mb-1">
+                    Konfirmasi Hapus Pesanan
+                  </p>
+                  <p className="text-sm text-foreground-muted">
+                    Apakah Anda yakin ingin menghapus pesanan{" "}
+                    <span className="font-bold text-foreground">
+                      {deletingOrder.orderNumber}
+                    </span>
+                    ?
+                  </p>
+                  <p className="text-sm text-foreground-muted mt-2">
+                    Tindakan ini akan membatalkan pesanan dan tidak dapat
+                    dibatalkan.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deleting}
+              >
+                Batal
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => handleDeleteOrder(deletingOrder.id)}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin mr-2" />
+                    Menghapus...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="size-4 mr-2" />
+                    Hapus Pesanan
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         )}
       </Modal>

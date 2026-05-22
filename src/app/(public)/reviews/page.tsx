@@ -155,7 +155,7 @@ export default function ReviewsPage() {
             {/* Average Rating */}
             <div className="text-center md:text-left">
               <div className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-6xl font-extrabold tracking-tight text-transparent">{averageRating.toFixed(1)}</div>
-              <StarRating rating={Math.round(averageRating)} size="lg" />
+              <StarRating rating={Math.floor(averageRating + 0.5)} size="lg" />
               <p className="mt-2 text-foreground-muted">{reviews.length} ulasan terverifikasi</p>
             </div>
 

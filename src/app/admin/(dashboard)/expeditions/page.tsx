@@ -113,6 +113,15 @@ export default function AdminExpeditionsPage() {
           isDefault: false,
         } as any);
       } else if (selected) {
+        // Optimistic update: update status di list immediately
+        const newStatus = formIsActive;
+        setExpeditions(prev => prev.map(exp => 
+          exp.id === selected.id 
+            ? { ...exp, is_active: newStatus }
+            : exp
+        ));
+        console.log("[handleSubmit] Updated expedition status:", newStatus);
+        
         await adminExpeditions.update(selected.id, {
           name: formName,
           code: formCode,
@@ -123,7 +132,9 @@ export default function AdminExpeditionsPage() {
         } as any);
       }
       setModalOpen(false);
-      fetchData();
+      
+      // Don't refetch - optimistic update is sufficient
+      // The list is already updated with correct status
     } catch (err: any) {
       alert("Gagal: " + (err.message ?? "Unknown"));
     } finally {
@@ -254,7 +265,7 @@ export default function AdminExpeditionsPage() {
                       {exp.is_store_delivery ? (
                         <Badge variant="default">Kurir Toko</Badge>
                       ) : (
-                        <Badge variant="info">Ekspedisi</Badge>
+                        <Badge variant="default">Ekspedisi</Badge>
                       )}
                     </td>
                     <td className="px-6 py-4">

@@ -85,30 +85,40 @@ export default function AdminInventoryPage() {
       ]);
 
       // Extract inventory items from products
-      const productNames: Record<string, string> = {};
-      const allItems = [];
+      const allItems: DisplayItem[] = [];
       for (const product of productsRes.data ?? []) {
         const p = product as any;
-        productNames[p.id] = p.title ?? p.name ?? "";
         for (const variant of p.variants ?? []) {
+          const quantity = variant.inventory ?? variant.inventory_quantity ?? 0;
           allItems.push({
             id: variant.id,
-            productId: p.id,
-            productTitle: p.title ?? p.name ?? "",
-            variantTitle: variant.title ?? "",
-            sku: variant.sku ?? "",
-            stockedQuantity:
-              variant.inventory ?? variant.inventory_quantity ?? 0,
+            sku: variant.sku ?? "-",
+            productName: p.title ?? p.name ?? "Produk",
+            inventoryTitle: variant.title ?? "",
+            quantity,
+            reserved: 0,
+            available: quantity, // Available = quantity - reserved
           });
         }
       }
 
-      setAllItems(allItems.map((item: any) => mapItem(item, productNames)));
+      setAllItems(allItems);
       setLowStockItems(
-        (lowRes.data ?? []).map((item: any) => mapItem(item, productNames)),
+        (lowRes.data ?? []).map((item: any) => {
+          const quantity = item.quantity ?? 0;
+          return {
+            id: item.id,
+            sku: item.variant?.sku ?? "-",
+            productName: item.variant?.product?.name ?? item.variant?.title ?? "Produk",
+            inventoryTitle: item.variant?.title ?? "",
+            quantity,
+            reserved: 0,
+            available: quantity,
+          };
+        }),
       );
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch inventory:", err);
     } finally {
       setLoading(false);
     }

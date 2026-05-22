@@ -7,11 +7,13 @@ import { ROUTES } from '@/constants'
 import { Button } from '@/components/ui/neu/Button'
 import { Lock, Mail, Eye, EyeOff, ArrowLeft, Store } from 'lucide-react'
 import { adminLogin as adminLoginApi } from '@/lib/medusa'
+import { useQueryClient } from '@tanstack/react-query'
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || ROUTES.ADMIN
+  const queryClient = useQueryClient()
 
   const [email, setEmail] = useState('admin@waterpro.id')
   const [password, setPassword] = useState('')
@@ -29,7 +31,13 @@ function LoginForm() {
       if (!res.success || !res.data) {
         throw new Error((res as any).meta?.error?.message ?? 'Login gagal')
       }
+      
+      // Invalidate profile query to trigger refetch with new token
+      queryClient.invalidateQueries({ queryKey: ['auth', 'profile'] })
+      
+      // Redirect to admin dashboard
       router.push(redirect)
+      router.refresh() // Force refresh to reload auth context
     } catch (err: any) {
       setError(err.message ?? 'Terjadi kesalahan')
     } finally {

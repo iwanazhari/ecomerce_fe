@@ -14,7 +14,7 @@ export { Textarea } from './textarea'
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs'
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './accordion'
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip'
-export { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from './pagination'
+// Note: shadcn pagination not available, using custom DataPagination component
 export { Separator } from './separator'
 export { Popover, PopoverContent, PopoverTrigger } from './popover'
 export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup, DropdownMenuShortcut, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuCheckboxItem } from './dropdown-menu'

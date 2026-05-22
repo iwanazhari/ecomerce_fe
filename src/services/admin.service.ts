@@ -120,9 +120,10 @@ export const adminProducts = {
     };
   },
 
-  get: async (id: string) => {
+  get: async (id: string, params?: Record<string, string>) => {
     const result = await api.get<Record<string, unknown>>(
       `/admin/products/${id}`,
+      params, // Support cache-busting params
     );
     if (!result.success || !result.data) return null;
     const data = result.data as Record<string, unknown>;
@@ -134,24 +135,31 @@ export const adminProducts = {
       image?: File;
       price?: number;
       inventory?: number;
+      images?: { id: string; url: string; isPrimary?: boolean }[];
     },
   ) => {
-    const formData = new FormData();
-    if ((data as any).title) formData.append("title", (data as any).title);
+    const jsonData: any = {};
+    if ((data as any).title) jsonData.title = (data as any).title;
     if ((data as any).description)
-      formData.append("description", (data as any).description);
-    if ((data as any).handle) formData.append("handle", (data as any).handle);
-    if (data.price !== undefined) formData.append("price", String(data.price));
+      jsonData.description = (data as any).description;
+    if ((data as any).handle) jsonData.handle = (data as any).handle;
+    if (data.price !== undefined) jsonData.price = Number(data.price);
     if (data.inventory !== undefined)
-      formData.append("inventory", String(data.inventory));
+      jsonData.inventory = Number(data.inventory);
     if ((data as any).categoryId)
-      formData.append("categoryId", (data as any).categoryId);
-    if (data.image) formData.append("image", data.image);
+      jsonData.categoryId = (data as any).categoryId;
+    // Send uploaded images array to backend
+    if (data.images && data.images.length > 0) {
+      jsonData.images = data.images.map((img) => ({
+        url: img.url,
+        isPrimary: img.isPrimary ?? false,
+      }));
+    }
 
     const result = await apiRequest<Record<string, unknown>>(
       "POST",
       "/admin/products",
-      formData,
+      jsonData,
     );
     if (!result.success || !result.data)
       throw new Error("Failed to create product");
@@ -165,26 +173,38 @@ export const adminProducts = {
       image?: File;
       price?: number;
       inventory?: number;
+      images?: { id?: string; url: string; isPrimary?: boolean }[];
     },
   ) => {
-    const formData = new FormData();
+    // Send as JSON instead of FormData to preserve number types
+    const jsonData: any = {};
     if ((data as any).title !== undefined)
-      formData.append("title", (data as any).title);
+      jsonData.title = (data as any).title;
     if ((data as any).description !== undefined)
-      formData.append("description", (data as any).description);
+      jsonData.description = (data as any).description;
     if ((data as any).handle !== undefined)
-      formData.append("handle", (data as any).handle);
-    if (data.price !== undefined) formData.append("price", String(data.price));
+      jsonData.handle = (data as any).handle;
+    // Send status directly - backend will convert to isActive
+    if ((data as any).status !== undefined)
+      jsonData.status = (data as any).status;
+    if (data.price !== undefined)
+      jsonData.price = Number(data.price); // Ensure number type
     if (data.inventory !== undefined)
-      formData.append("inventory", String(data.inventory));
+      jsonData.inventory = Number(data.inventory); // Ensure number type
     if ((data as any).categoryId !== undefined)
-      formData.append("categoryId", (data as any).categoryId);
-    if (data.image) formData.append("image", data.image);
+      jsonData.categoryId = (data as any).categoryId;
+    // Send images array to backend (replace all images)
+    if (data.images && data.images.length > 0) {
+      jsonData.images = data.images.map((img) => ({
+        url: img.url,
+        isPrimary: img.isPrimary ?? false,
+      }));
+    }
 
     const result = await apiRequest<Record<string, unknown>>(
       "PUT",
       `/admin/products/${id}`,
-      formData,
+      jsonData,
     );
     if (!result.success || !result.data)
       throw new Error("Failed to update product");
@@ -427,6 +447,7 @@ export const adminExpeditions = {
     limit?: number;
     type?: string;
     isActive?: boolean;
+    _t?: string; // Cache-busting timestamp
   }) => {
     const result = await api.get<Record<string, unknown>>(
       "/admin/expeditions",
@@ -437,6 +458,7 @@ export const adminExpeditions = {
         ...(params?.isActive !== undefined && {
           isActive: String(params.isActive),
         }),
+        ...(params?._t && { _t: params._t }), // Cache buster
       },
     );
 
@@ -498,10 +520,16 @@ export const adminExpeditions = {
       isDefault?: boolean;
     },
   ) => {
+    console.log("[adminExpeditions.update] ID:", id);
+    console.log("[adminExpeditions.update] Data:", JSON.stringify(data, null, 2));
+    
     const result = await api.put<Record<string, unknown>>(
       `/admin/expeditions/${id}`,
       data,
     );
+    
+    console.log("[adminExpeditions.update] Response:", result);
+    
     if (!result.success || !result.data) return null;
     const res = result.data as Record<string, unknown>;
     return (res.data ?? res.expedition ?? res) as Record<string, unknown>;
@@ -614,7 +642,30 @@ export const adminUploads = {
   },
 
   uploadFiles: async (files: FileList | File[]) => {
-    return [];
+    const formData = new FormData();
+    const fileList = Array.isArray(files) ? files : Array.from(files);
+    for (const file of fileList) {
+      formData.append("files", file);
+    }
+
+    const result = await apiRequest<Record<string, unknown>>(
+      "POST",
+      "/admin/uploads",
+      formData,
+    );
+
+    if (!result.success || !result.data) return [];
+    const data = result.data as Record<string, unknown>;
+    const uploads = (data.uploads ?? data.files ?? data) as Record<
+      string,
+      unknown
+    >[];
+    return Array.isArray(uploads)
+      ? uploads.map((file) => ({
+          id: (file.id as string) ?? "",
+          url: (file.url as string) ?? "",
+        }))
+      : [];
   },
 
   deleteFile: async (fileId: string) => {},
