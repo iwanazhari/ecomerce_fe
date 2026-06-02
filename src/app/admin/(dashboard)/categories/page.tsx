@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { adminCategories } from "@/services/medusa-admin.service";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import {
   Button,
   Card,
@@ -11,6 +12,7 @@ import {
   Input,
 } from "@/components/ui/neu";
 import { Tag, Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { AdminGuard, RequirePermission } from "@/components/admin/AdminGuard";
 
 type Category = {
   id: string;
@@ -50,6 +52,17 @@ export default function AdminCategoriesPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // WebSocket listener for real-time category updates
+  useWebSocket("realtime", (data) => {
+    console.log("[Categories] realtime event received:", data);
+
+    // Handle cache:invalidated events for categories
+    if (data?.event === "cache:invalidated" && data?.data?.type === "category") {
+      console.log("[Categories] Category cache invalidated, refetching...");
+      fetchData();
+    }
+  }, true);
 
   const openCreate = () => {
     setModalMode("create");
@@ -114,7 +127,8 @@ export default function AdminCategoriesPage() {
     );
 
   return (
-    <div className="space-y-8">
+    <AdminGuard requirePermissions={["categories:read"]}>
+      <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
@@ -124,9 +138,11 @@ export default function AdminCategoriesPage() {
             {categories.length} kategori total
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" /> Tambah Kategori
-        </Button>
+        <RequirePermission permission="categories:create">
+          <Button onClick={openCreate}>
+            <Plus className="size-4" /> Tambah Kategori
+          </Button>
+        </RequirePermission>
       </div>
 
       <div className="max-w-md">
@@ -205,15 +221,17 @@ export default function AdminCategoriesPage() {
                         >
                           <Pencil className="size-4" />
                         </button>
-                        <button
-                          onClick={() => {
-                            setDeleteId(cat.id);
-                            setDeleteModalOpen(true);
-                          }}
-                          className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-error active:shadow-inset-deep transition-all"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+                        <RequirePermission permission="categories:delete">
+                          <button
+                            onClick={() => {
+                              setDeleteId(cat.id);
+                              setDeleteModalOpen(true);
+                            }}
+                            className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-error active:shadow-inset-deep transition-all"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </RequirePermission>
                       </div>
                     </td>
                   </tr>
@@ -294,5 +312,6 @@ export default function AdminCategoriesPage() {
         </div>
       </Modal>
     </div>
+    </AdminGuard>
   );
 }

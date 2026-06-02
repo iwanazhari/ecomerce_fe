@@ -1,8 +1,8 @@
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { listProducts, listCategories } from '@/lib/api'
 
+// Dynamic SSR — searchParams membutuhkan request-time rendering
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 interface ProductsPageProps {
   searchParams: {

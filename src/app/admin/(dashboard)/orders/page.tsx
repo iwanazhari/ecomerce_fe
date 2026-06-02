@@ -28,123 +28,78 @@ import {
   Clock,
   AlertCircle,
 } from "lucide-react";
+import { AdminGuard, RequirePermission } from "@/components/admin/AdminGuard";
 
 import { Pagination } from "@/components/ui/data-pagination";
 
-type MedusaOrder = {
+type ExpressOrder = {
   id: string;
-  display_id?: number | null;
-  email?: string | null;
-  total?: number | null;
-  subtotal?: number | null;
-  currency_code?: string | null;
-  status?: string | null;
-  fulfillment_status?: string | null;
-  payment_status?: string | null;
-  shipping_address?: {
-    first_name?: string;
-    last_name?: string;
-    address_1?: string;
-    city?: string;
-    postal_code?: string;
-    country_code?: string;
-  } | null;
-  items?:
-    | {
-        title: string;
-        quantity: number;
-        unit_price?: number;
-        variant?: { product?: { title: string } };
-      }[]
-    | null;
-  customer?: { email?: string; first_name?: string; last_name?: string } | null;
-  fulfillments?: { id: string; status?: string; created_at?: string }[] | null;
-  created_at?: string | null;
-  payment?: {
-    id?: string;
-    transactionStatus?: string;
-    amount?: string | number;
+  orderNumber: string;
+  status: string;
+  paymentStatus: string;
+  totalAmount: number;
+  subtotal: number;
+  shippingCost: number;
+  discountAmount: number;
+  promoCode: string | null;
+  createdAt: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string | null;
+  OrderItem: Array<{
+    id: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    productName: string;
+    productSku: string;
+    product: { id: string; name: string } | null;
+  }>;
+  User: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
   } | null;
 };
 
 type DisplayOrder = {
   id: string;
   orderNumber: string;
+  productName: string;
   customer: { name: string; email: string };
   total: number;
   status: string;
-  fulfillmentStatus: string;
   paymentStatus: string;
-  itemCount: number;
   createdAt: string;
-  shippingAddress?: { name: string; city: string };
-  items?: { name: string; quantity: number; price: number }[];
 };
 
-function mapOrder(o: MedusaOrder & { paymentStatus?: string; payment?: { transactionStatus?: string } }): DisplayOrder {
-  const customerName =
-    [o.customer?.first_name, o.customer?.last_name].filter(Boolean).join(" ") ||
-    o.email ||
-    "Pelanggan";
-  const shippingName =
-    [o.shipping_address?.first_name, o.shipping_address?.last_name]
-      .filter(Boolean)
-      .join(" ") || customerName;
+type OrderDetail = DisplayOrder & {
+  items: { name: string; quantity: number; price: number }[];
+};
 
-  // Priority 1: Backend Express sends paymentStatus (camelCase) at root level
-  // Priority 2: Read from payment.transactionStatus (nested payment object)
-  // Priority 3: Fallback to payment_status (snake_case)
-  const backendPaymentStatus = (o as any).paymentStatus;
-  const paymentTransactionStatus = o.payment?.transactionStatus;
-  
+function mapOrder(o: ExpressOrder): DisplayOrder {
+  const customerName = o.customerName || [o.User?.firstName, o.User?.lastName].filter(Boolean).join(" ") || o.customerEmail || "Pelanggan";
+  const firstItem = o.OrderItem?.[0];
+  const productName = firstItem?.productName || firstItem?.product?.name || "Produk";
+
   const paymentStatusMap: Record<string, string> = {
     PAID: "paid",
     PENDING: "awaiting",
     FAILED: "not_paid",
     REFUNDED: "refunded",
-    settlement: "paid",      // Midtrans transaction status
-    capture: "paid",         // Midtrans capture status
-    authorize: "awaiting",   // Midtrans authorize status
-    deny: "not_paid",        // Midtrans deny status
-    expire: "not_paid",      // Midtrans expire status
-    cancel: "not_paid",      // Midtrans cancel status
+    SUCCESS: "paid",
   };
-  
-  let mappedPaymentStatus = "not_paid";
-  
-  if (backendPaymentStatus) {
-    // Use root level paymentStatus if available
-    mappedPaymentStatus = paymentStatusMap[backendPaymentStatus] ?? "not_paid";
-  } else if (paymentTransactionStatus) {
-    // Fallback to payment.transactionStatus from Midtrans
-    mappedPaymentStatus = paymentStatusMap[paymentTransactionStatus] ?? "not_paid";
-  } else if (o.payment_status) {
-    // Last fallback to snake_case field
-    mappedPaymentStatus = paymentStatusMap[o.payment_status] ?? "not_paid";
-  }
 
   return {
     id: o.id,
-    orderNumber:
-      o.display_id != null
-        ? `ORD-${String(o.display_id).padStart(4, "0")}`
-        : o.id.slice(-8).toUpperCase(),
-    customer: { name: customerName, email: o.email ?? o.customer?.email ?? "" },
-    total: o.total ?? o.subtotal ?? 0,
-    status: o.status ?? "pending",
-    fulfillmentStatus: o.fulfillment_status ?? "not_fulfilled",
-    paymentStatus: mappedPaymentStatus,
-    itemCount: o.items?.length ?? 0,
-    createdAt: o.created_at ?? new Date().toISOString(),
-    shippingAddress: {
-      name: shippingName,
-      city: o.shipping_address?.city ?? "-",
-    },
-    items: o.items?.map((i: any) => ({
-      name: i.variant?.product?.title ?? i.title ?? "Produk",
-      quantity: i.quantity ?? 1,
-      price: i.unit_price ?? 0,
-    })),
+    orderNumber: o.orderNumber || o.id.slice(-8).toUpperCase(),
+    productName,
+    customer: { name: customerName, email: o.customerEmail || o.User?.email || "" },
+    total: o.totalAmount ?? o.subtotal ?? 0,
+    status: o.status ?? "PENDING",
+    paymentStatus: paymentStatusMap[o.paymentStatus] ?? "not_paid",
+    createdAt: o.createdAt ?? new Date().toISOString(),
   };
 }
 
@@ -156,11 +111,15 @@ function OrderStatusBadge({ status }: { status: string }) {
       variant: "success" | "warning" | "error" | "default" | "info";
     }
   > = {
-    pending: { label: "Pending", variant: "warning" },
-    completed: { label: "Selesai", variant: "success" },
-    archived: { label: "Arsip", variant: "default" },
-    canceled: { label: "Batal", variant: "error" },
-    requires_action: { label: "Perlu Aksi", variant: "error" },
+    PENDING: { label: "Pending", variant: "warning" },
+    PAID: { label: "Dibayar", variant: "info" },
+    PROCESSING: { label: "Diproses", variant: "info" },
+    PACKED: { label: "Dikemas", variant: "info" },
+    SHIPPED: { label: "Dikirim", variant: "success" },
+    DELIVERED: { label: "Selesai", variant: "success" },
+    CANCELLED: { label: "Batal", variant: "error" },
+    REFUNDED: { label: "Refund", variant: "error" },
+    RETURNED: { label: "Dikembalikan", variant: "error" },
   };
   const s = map[status] ?? { label: status, variant: "default" };
   return <Badge variant={s.variant}>{s.label}</Badge>;
@@ -202,7 +161,7 @@ export default function AdminOrdersPage() {
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
-  const [detailOrder, setDetailOrder] = useState<DisplayOrder | null>(null);
+  const [detailOrder, setDetailOrder] = useState<OrderDetail | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [processModalOpen, setProcessModalOpen] = useState(false);
   const [processingOrder, setProcessingOrder] = useState<DisplayOrder | null>(
@@ -248,8 +207,8 @@ export default function AdminOrdersPage() {
       // Handle order-related events
       if (data?.event && ['order:updated', 'order:created', 'order:cancelled', 'payment:success'].includes(data.event)) {
         console.log(`🔔 ${data.event} event:`, data.data);
-        // Delayed refetch to ensure database is updated
-        setTimeout(() => fetchData(), 1000);
+        // Refetch immediately — backend already committed the transaction
+        fetchData();
       }
     };
 
@@ -264,16 +223,20 @@ export default function AdminOrdersPage() {
 
   const handleProcessOrder = async (
     orderId: string,
-    action: "fulfill" | "deliver" | "cancel",
+    action: "process" | "pack" | "ship" | "deliver" | "cancel",
   ) => {
     setProcessing(true);
     try {
-      if (action === "fulfill") {
-        await adminOrders.updateStatus(orderId, "PROCESSING");
-      } else if (action === "deliver") {
-        await adminOrders.updateStatus(orderId, "DELIVERED");
-      } else if (action === "cancel") {
+      const statusMap: Record<string, string> = {
+        process: "PROCESSING",
+        pack: "PACKED",
+        ship: "SHIPPED",
+        deliver: "DELIVERED",
+      };
+      if (action === "cancel") {
         await adminOrders.cancel(orderId);
+      } else {
+        await adminOrders.updateStatus(orderId, statusMap[action]);
       }
       setProcessModalOpen(false);
       setProcessingOrder(null);
@@ -304,9 +267,25 @@ export default function AdminOrdersPage() {
     setDeleteModalOpen(true);
   };
 
-  const openDetail = (order: DisplayOrder) => {
-    setDetailOrder(order);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openDetail = async (order: DisplayOrder) => {
     setDetailOpen(true);
+    setDetailLoading(true);
+    try {
+      const res = await adminOrders.getDetail(order.id);
+      const raw = (res as any).data ?? res;
+      const items = (raw.OrderItem ?? []).map((i: any) => ({
+        name: i.productName || i.product?.name || "Produk",
+        quantity: i.quantity ?? 1,
+        price: i.unitPrice ?? i.totalPrice ?? 0,
+      }));
+      setDetailOrder({ ...order, items });
+    } catch {
+      setDetailOrder({ ...order, items: [] });
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const openProcess = (order: DisplayOrder) => {
@@ -315,11 +294,8 @@ export default function AdminOrdersPage() {
   };
 
   const canProcess = (order: DisplayOrder) => {
-    return (
-      order.paymentStatus === "paid" &&
-      order.fulfillmentStatus !== "fulfilled" &&
-      order.status !== "canceled"
-    );
+    const processable = ["PAID", "PROCESSING", "PACKED", "SHIPPED"];
+    return processable.includes(order.status);
   };
 
   if (loading) {
@@ -331,7 +307,8 @@ export default function AdminOrdersPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <AdminGuard requirePermissions={["orders:read"]}>
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -374,12 +351,6 @@ export default function AdminOrdersPage() {
                 <th className="px-6 py-4 text-left text-xs font-bold text-foreground-muted uppercase tracking-wider shadow-inset-small">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-foreground-muted uppercase tracking-wider shadow-inset-small">
-                  Pembayaran
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-foreground-muted uppercase tracking-wider shadow-inset-small">
-                  Pengiriman
-                </th>
                 <th className="px-6 py-4 text-right text-xs font-bold text-foreground-muted uppercase tracking-wider shadow-inset-small">
                   Aksi
                 </th>
@@ -389,7 +360,7 @@ export default function AdminOrdersPage() {
               {orders.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={5}
                     className="p-12 text-center text-foreground-muted"
                   >
                     <ShoppingCart className="size-10 mx-auto mb-3 text-foreground-subtle" />
@@ -404,18 +375,15 @@ export default function AdminOrdersPage() {
                   >
                     <td className="px-6 py-4">
                       <p className="font-bold text-foreground">
-                        {order.orderNumber}
+                        {order.productName}
                       </p>
                       <p className="text-xs text-foreground-muted">
-                        {formatDate(order.createdAt)}
+                        {order.orderNumber} &middot; {formatDate(order.createdAt)}
                       </p>
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <p className="font-medium text-foreground">
                         {order.customer.name}
-                      </p>
-                      <p className="text-xs text-foreground-muted">
-                        {order.customer.email}
                       </p>
                     </td>
                     <td className="px-6 py-4 text-sm font-bold text-foreground">
@@ -423,12 +391,6 @@ export default function AdminOrdersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <OrderStatusBadge status={order.status} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <PaymentBadge status={order.paymentStatus} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <FulfillmentBadge status={order.fulfillmentStatus} />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -482,17 +444,31 @@ export default function AdminOrdersPage() {
         title={detailOrder?.orderNumber ?? "Detail Pesanan"}
         size="lg"
       >
-        {detailOrder && (
+        {detailLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="size-8 animate-spin text-primary" />
+          </div>
+        ) : detailOrder && (
           <div className="space-y-6">
             {/* Status row */}
             <div className="flex flex-wrap gap-3">
               <OrderStatusBadge status={detailOrder.status} />
               <PaymentBadge status={detailOrder.paymentStatus} />
-              <FulfillmentBadge status={detailOrder.fulfillmentStatus} />
             </div>
 
             {/* Customer info */}
             <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-foreground-muted uppercase tracking-wider mb-1">
+                  Pesanan
+                </p>
+                <p className="font-bold text-foreground">
+                  {detailOrder.orderNumber}
+                </p>
+                <p className="text-sm text-foreground-muted">
+                  {formatDate(detailOrder.createdAt)}
+                </p>
+              </div>
               <div>
                 <p className="text-xs text-foreground-muted uppercase tracking-wider mb-1">
                   Pelanggan
@@ -504,26 +480,15 @@ export default function AdminOrdersPage() {
                   {detailOrder.customer.email}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-foreground-muted uppercase tracking-wider mb-1">
-                  Alamat Kirim
-                </p>
-                <p className="font-bold text-foreground">
-                  {detailOrder.shippingAddress?.name}
-                </p>
-                <p className="text-sm text-foreground-muted">
-                  {detailOrder.shippingAddress?.city}
-                </p>
-              </div>
             </div>
 
             {/* Items */}
             <div>
               <p className="text-xs text-foreground-muted uppercase tracking-wider mb-3">
-                Item ({detailOrder.itemCount})
+                Item ({detailOrder.items.length})
               </p>
               <div className="space-y-2">
-                {detailOrder.items?.map((item, i) => (
+                {detailOrder.items.map((item, i) => (
                   <div
                     key={i}
                     className="flex items-center justify-between p-3 rounded-2xl shadow-inset-small"
@@ -572,63 +537,107 @@ export default function AdminOrdersPage() {
               :
             </p>
 
-            {processingOrder.fulfillmentStatus === "not_fulfilled" && (
-              <button
-                onClick={() =>
-                  handleProcessOrder(processingOrder.id, "fulfill")
-                }
-                disabled={processing}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-extruded hover:shadow-extruded-lg hover:-translate-y-0.5 active:shadow-inset-small active:translate-y-0.5 transition-all text-left disabled:opacity-50"
-              >
-                <IconWell className="size-12 text-primary shrink-0">
-                  <Package className="size-6" />
-                </IconWell>
-                <div>
-                  <p className="font-bold text-foreground">Tandai Dikemas</p>
-                  <p className="text-xs text-foreground-muted">
-                    Pesanan sedang dikemas
-                  </p>
-                </div>
-              </button>
-            )}
+            <RequirePermission permission="orders:update">
+              {processingOrder.status === "PAID" && (
+                <button
+                  onClick={() =>
+                    handleProcessOrder(processingOrder.id, "process")
+                  }
+                  disabled={processing}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-extruded hover:shadow-extruded-lg hover:-translate-y-0.5 active:shadow-inset-small active:translate-y-0.5 transition-all text-left disabled:opacity-50"
+                >
+                  <IconWell className="size-12 text-primary shrink-0">
+                    <Package className="size-6" />
+                  </IconWell>
+                  <div>
+                    <p className="font-bold text-foreground">Tandai Diproses</p>
+                    <p className="text-xs text-foreground-muted">
+                      Pesanan sedang diproses
+                    </p>
+                  </div>
+                </button>
+              )}
 
-            {processingOrder.fulfillmentStatus === "fulfilled" && (
-              <button
-                onClick={() =>
-                  handleProcessOrder(processingOrder.id, "deliver")
-                }
-                disabled={processing}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-extruded hover:shadow-extruded-lg hover:-translate-y-0.5 active:shadow-inset-small active:translate-y-0.5 transition-all text-left disabled:opacity-50"
-              >
-                <IconWell className="size-12 text-success shrink-0">
-                  <Truck className="size-6" />
-                </IconWell>
-                <div>
-                  <p className="font-bold text-foreground">Tandai Dikirim</p>
-                  <p className="text-xs text-foreground-muted">
-                    Pesanan sedang dikirim ke pelanggan
-                  </p>
-                </div>
-              </button>
-            )}
+              {processingOrder.status === "PROCESSING" && (
+                <button
+                  onClick={() =>
+                    handleProcessOrder(processingOrder.id, "pack")
+                  }
+                  disabled={processing}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-extruded hover:shadow-extruded-lg hover:-translate-y-0.5 active:shadow-inset-small active:translate-y-0.5 transition-all text-left disabled:opacity-50"
+                >
+                  <IconWell className="size-12 text-primary shrink-0">
+                    <Package className="size-6" />
+                  </IconWell>
+                  <div>
+                    <p className="font-bold text-foreground">Tandai Dikemas</p>
+                    <p className="text-xs text-foreground-muted">
+                      Pesanan sudah dikemas
+                    </p>
+                  </div>
+                </button>
+              )}
 
-            {processingOrder.status !== "canceled" && (
-              <button
-                onClick={() => handleProcessOrder(processingOrder.id, "cancel")}
-                disabled={processing}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-extruded hover:shadow-extruded-lg hover:-translate-y-0.5 active:shadow-inset-small active:translate-y-0.5 transition-all text-left disabled:opacity-50"
-              >
-                <IconWell className="size-12 text-error shrink-0">
-                  <XCircle className="size-6" />
-                </IconWell>
-                <div>
-                  <p className="font-bold text-foreground">Batalkan Pesanan</p>
-                  <p className="text-xs text-foreground-muted">
-                    Batalkan pesanan ini
-                  </p>
-                </div>
-              </button>
-            )}
+              {processingOrder.status === "PACKED" && (
+                <button
+                  onClick={() =>
+                    handleProcessOrder(processingOrder.id, "ship")
+                  }
+                  disabled={processing}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-extruded hover:shadow-extruded-lg hover:-translate-y-0.5 active:shadow-inset-small active:translate-y-0.5 transition-all text-left disabled:opacity-50"
+                >
+                  <IconWell className="size-12 text-success shrink-0">
+                    <Truck className="size-6" />
+                  </IconWell>
+                  <div>
+                    <p className="font-bold text-foreground">Tandai Dikirim</p>
+                    <p className="text-xs text-foreground-muted">
+                      Pesanan dikirim ke pelanggan
+                    </p>
+                  </div>
+                </button>
+              )}
+
+              {processingOrder.status === "SHIPPED" && (
+                <button
+                  onClick={() =>
+                    handleProcessOrder(processingOrder.id, "deliver")
+                  }
+                  disabled={processing}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-extruded hover:shadow-extruded-lg hover:-translate-y-0.5 active:shadow-inset-small active:translate-y-0.5 transition-all text-left disabled:opacity-50"
+                >
+                  <IconWell className="size-12 text-success shrink-0">
+                    <CheckCircle className="size-6" />
+                  </IconWell>
+                  <div>
+                    <p className="font-bold text-foreground">Tandai Diterima</p>
+                    <p className="text-xs text-foreground-muted">
+                      Pesanan sudah diterima pelanggan
+                    </p>
+                  </div>
+                </button>
+              )}
+            </RequirePermission>
+
+            <RequirePermission permission="orders:cancel">
+              {!"DELIVERED CANCELLED REFUNDED RETURNED".includes(processingOrder.status) && (
+                <button
+                  onClick={() => handleProcessOrder(processingOrder.id, "cancel")}
+                  disabled={processing}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl shadow-extruded hover:shadow-extruded-lg hover:-translate-y-0.5 active:shadow-inset-small active:translate-y-0.5 transition-all text-left disabled:opacity-50"
+                >
+                  <IconWell className="size-12 text-error shrink-0">
+                    <XCircle className="size-6" />
+                  </IconWell>
+                  <div>
+                    <p className="font-bold text-foreground">Batalkan Pesanan</p>
+                    <p className="text-xs text-foreground-muted">
+                      Batalkan pesanan ini
+                    </p>
+                  </div>
+                </button>
+              )}
+            </RequirePermission>
 
             {processing && (
               <div className="flex items-center justify-center py-4">
@@ -700,5 +709,6 @@ export default function AdminOrdersPage() {
         )}
       </Modal>
     </div>
+    </AdminGuard>
   );
 }

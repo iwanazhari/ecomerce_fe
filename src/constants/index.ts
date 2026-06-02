@@ -218,4 +218,6 @@ export const ROUTES = {
   ADMIN_ANALYTICS: '/admin/analytics',
   ADMIN_EXPEDITIONS: '/admin/expeditions',
   ADMIN_PROVINCES: '/admin/provinces',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_LOGIN: '/admin/login',
 } as const

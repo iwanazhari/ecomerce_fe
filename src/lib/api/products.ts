@@ -68,17 +68,11 @@ export async function getProductBySlug(
   slug: string,
 ): Promise<ApiResponse<Product>> {
   try {
-    // Backend search doesn't support slug matching, so fetch products
-    // and filter client-side by slug (handle field from backend)
-    const listResult = await listProducts({ limit: 100 });
+    const result = await api.get<Record<string, unknown>>(
+      `products/by-slug/${encodeURIComponent(slug)}`,
+    );
 
-    if (!listResult.success) {
-      return listResult as any;
-    }
-
-    // Find exact match by slug
-    const product = listResult.data.find((p) => p.slug === slug);
-    if (!product) {
+    if (!result.success || !result.data) {
       return {
         success: false,
         data: undefined as any,
@@ -88,7 +82,10 @@ export async function getProductBySlug(
       } as any;
     }
 
-    return { success: true, data: product };
+    return {
+      success: true,
+      data: mapBackendProduct(result.data as Record<string, unknown>),
+    };
   } catch (error: any) {
     return {
       success: false,
@@ -135,7 +132,7 @@ export async function getRecentlyViewed(): Promise<ApiResponse<Product[]>> {
 // Categories (derived from product categories)
 // ─────────────────────────────────────────────
 
-// Cache categories from product listings since there's no dedicated category endpoint
+// Cache categories in-memory so we don't hit the API on every page navigation
 let cachedCategories: Category[] | null = null;
 
 export async function listCategories(): Promise<ApiResponse<Category[]>> {
@@ -144,24 +141,24 @@ export async function listCategories(): Promise<ApiResponse<Category[]>> {
       return { success: true, data: cachedCategories };
     }
 
-    // Fetch products to extract categories
-    const result = await listProducts({ limit: 50 });
-    if (!result.success) {
-      return result as any;
+    // Use dedicated categories endpoint
+    const result = await api.get<Record<string, unknown>[]>("products/categories");
+
+    if (!result.success || !result.data) {
+      return { success: false, data: [] } as any;
     }
 
-    // Collect unique categories
-    const categoryMap = new Map<string, Category>();
-    for (const product of result.data) {
-      for (const cat of product.categories) {
-        if (!categoryMap.has(cat.id)) {
-          categoryMap.set(cat.id, cat);
-        }
-      }
-    }
+    const raw = Array.isArray(result.data)
+      ? result.data
+      : (result.data as any).categories ??
+        (result.data as any).data ??
+        [];
 
-    cachedCategories = Array.from(categoryMap.values());
-    return { success: true, data: cachedCategories };
+    cachedCategories = raw.map((cat: Record<string, unknown>) =>
+      mapBackendCategory(cat),
+    );
+
+    return { success: true, data: cachedCategories! };
   } catch (error: any) {
     return {
       success: false,

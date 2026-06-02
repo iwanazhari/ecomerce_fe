@@ -53,6 +53,12 @@ export default function RootLayout({
     <html lang="id" className={cn("font-sans", plusJakartaSans.variable, dmSans.variable, geistMono.variable)} suppressHydrationWarning>
       <head>
         <script src="https://accounts.google.com/gsi/client" async defer />
+        {/* Preconnect to external origins for faster resource loading */}
+        <link rel="preconnect" href="https://picsum.photos" />
+        <link rel="preconnect" href="https://shop.filterairwaterpro.com" />
+        <link rel="preconnect" href="https://accounts.google.com" />
+        <link rel="dns-prefetch" href="https://picsum.photos" />
+        <link rel="dns-prefetch" href="https://shop.filterairwaterpro.com" />
       </head>
       <body className="min-h-screen bg-background antialiased">
         <TooltipProvider>

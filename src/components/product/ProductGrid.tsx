@@ -34,17 +34,17 @@ export function ProductGrid({
   initialSort = 'newest'
 }: ProductGridProps) {
   const [search, setSearch] = useState(initialSearch)
-  const [category, setCategory] = useState(initialCategory || '')
+  const [category, setCategory] = useState(initialCategory || 'all')
   const [sort, setSort] = useState(initialSort)
   const [showFilters, setShowFilters] = useState(false)
   const [page, setPage] = useState(initialMeta?.page || 1)
 
   const debouncedSearch = useDebounce(search, 300)
   
-  // Fetch products (will use cache from SSR on first render)
+  // Fetch products — uses SSR data via fallback in productList below
   const { data: products, isLoading: productsLoading } = useProducts({
     search: debouncedSearch || undefined,
-    category: category || undefined,
+    category: category !== 'all' ? category : undefined,
     sort,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
@@ -55,7 +55,7 @@ export function ProductGrid({
 
   const handleClearFilters = useCallback(() => {
     setSearch('')
-    setCategory('')
+    setCategory('all')
     setSort('newest')
     setPage(1)
   }, [])
@@ -74,7 +74,7 @@ export function ProductGrid({
     )
   }
 
-  const hasFilters = search || category || sort !== 'newest' || page > 1
+  const hasFilters = search || category !== 'all' || sort !== 'newest' || page > 1
 
   // Reset page when filters change
   const handleSearch = (value: string) => { setSearch(value); setPage(1) }
@@ -125,7 +125,7 @@ export function ProductGrid({
                   <SelectValue placeholder="Semua Kategori" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Semua Kategori</SelectItem>
+                  <SelectItem value="all">Semua Kategori</SelectItem>
                   {categories?.map((cat) => (
                     <SelectItem key={cat.id} value={cat.slug}>
                       {cat.name}

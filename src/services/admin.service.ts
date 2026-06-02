@@ -139,18 +139,25 @@ export const adminProducts = {
     },
   ) => {
     const jsonData: any = {};
-    if ((data as any).title) jsonData.title = (data as any).title;
+    // Map frontend field names → backend field names
+    jsonData.name = (data as any).title ?? (data as any).name ?? "";
     if ((data as any).description)
       jsonData.description = (data as any).description;
-    if ((data as any).handle) jsonData.handle = (data as any).handle;
-    if (data.price !== undefined) jsonData.price = Number(data.price);
+    jsonData.slug = (data as any).handle ?? (data as any).slug ?? "";
+    if (data.price !== undefined) jsonData.basePrice = Number(data.price);
     if (data.inventory !== undefined)
-      jsonData.inventory = Number(data.inventory);
+      jsonData.stockQuantity = Number(data.inventory);
     if ((data as any).categoryId)
       jsonData.categoryId = (data as any).categoryId;
+    // Map status: frontend "published" -> backend "active"
+    if ((data as any).status !== undefined) {
+      const s = (data as any).status;
+      jsonData.status = s === "published" ? "active" : s === "draft" ? "draft" : s;
+    }
     // Send uploaded images array to backend
     if (data.images && data.images.length > 0) {
       jsonData.images = data.images.map((img) => ({
+        id: img.id, // Preserve id for existing images
         url: img.url,
         isPrimary: img.isPrimary ?? false,
       }));
@@ -178,24 +185,33 @@ export const adminProducts = {
   ) => {
     // Send as JSON instead of FormData to preserve number types
     const jsonData: any = {};
+    // Map frontend field names → backend field names
     if ((data as any).title !== undefined)
-      jsonData.title = (data as any).title;
+      jsonData.name = (data as any).title;
+    else if ((data as any).name !== undefined)
+      jsonData.name = (data as any).name;
     if ((data as any).description !== undefined)
       jsonData.description = (data as any).description;
     if ((data as any).handle !== undefined)
-      jsonData.handle = (data as any).handle;
-    // Send status directly - backend will convert to isActive
-    if ((data as any).status !== undefined)
-      jsonData.status = (data as any).status;
+      jsonData.slug = (data as any).handle;
+    else if ((data as any).slug !== undefined)
+      jsonData.slug = (data as any).slug;
+    // Send status directly - backend uses ProductStatus enum
+    if ((data as any).status !== undefined) {
+      // Convert frontend "published" -> backend "active"
+      const s = (data as any).status;
+      jsonData.status = s === "published" ? "active" : s === "draft" ? "draft" : s;
+    }
     if (data.price !== undefined)
-      jsonData.price = Number(data.price); // Ensure number type
+      jsonData.basePrice = Number(data.price); // Ensure number type
     if (data.inventory !== undefined)
-      jsonData.inventory = Number(data.inventory); // Ensure number type
+      jsonData.stockQuantity = Number(data.inventory); // Ensure number type
     if ((data as any).categoryId !== undefined)
       jsonData.categoryId = (data as any).categoryId;
     // Send images array to backend (replace all images)
     if (data.images && data.images.length > 0) {
       jsonData.images = data.images.map((img) => ({
+        id: img.id, // Preserve id for existing images
         url: img.url,
         isPrimary: img.isPrimary ?? false,
       }));
@@ -334,31 +350,38 @@ export const adminOrders = {
 
 export const adminCategories = {
   list: async (params?: { includeInactive?: boolean }) => {
-    // Categories are embedded in products
-    const { data: products } = await adminProducts.list({ limit: 100 });
-    const categoryMap = new Map<string, Category>();
-    for (const product of products ?? []) {
-      for (const cat of product.categories ?? []) {
-        if (!categoryMap.has(cat.id)) {
-          categoryMap.set(cat.id, cat);
-        }
-      }
+    // Use the public categories endpoint from Express backend
+    const result = await api.get<Record<string, unknown>>("/products/categories");
+    if (!result.success || !result.data) {
+      return { data: [] };
     }
-    return { data: Array.from(categoryMap.values()) };
+    const raw = Array.isArray(result.data)
+      ? result.data
+      : (result.data as any).categories ?? (result.data as any).data ?? [];
+    const categories: Category[] = raw.map((cat: Record<string, unknown>) => ({
+      id: cat.id as string,
+      name: (cat.name as string) ?? "",
+      slug: (cat.slug as string) ?? "",
+      description: (cat.description as string | null) ?? null,
+      image: (cat.imageUrl as string) ?? null,
+      parentId: (cat.parentId as string | null) ?? null,
+      isActive: (cat.isActive as boolean) ?? true,
+      sortOrder: (cat.sortOrder as number) ?? 0,
+    }));
+    return { data: categories };
   },
 
   create: async (data: Partial<Category>) => {
-    // Categories are created with products
-    throw new Error("Categories are created with products");
+    // No admin categories CRUD endpoint on Express backend
+    throw new Error("Category CRUD not available via admin API");
   },
 
   update: async (id: string, data: Partial<Category>) => {
-    // Categories are updated via product update
-    return data as Category;
+    throw new Error("Category CRUD not available via admin API");
   },
 
   delete: async (id: string) => {
-    // Categories are deleted via product update
+    throw new Error("Category CRUD not available via admin API");
   },
 };
 
@@ -368,31 +391,26 @@ export const adminCategories = {
 
 export const adminInventory = {
   getLowStock: async (threshold?: number) => {
-    const { data: products } = await adminProducts.list({ limit: 200 });
+    const result = await adminProducts.list({ limit: 500 });
+    const products = (result.data ?? []) as any[];
     const lowStock: InventoryItem[] = [];
     const thr = threshold ?? 10;
 
-    for (const product of products ?? []) {
-      for (const variant of product.variants ?? []) {
-        // Variant inventory field
-        const qty =
-          (variant as any).inventory ??
-          (variant as any).inventory_quantity ??
-          0;
-        if (qty <= thr) {
-          lowStock.push({
-            id: variant.id,
-            variantId: variant.id,
-            quantity: qty,
-            lowStockThreshold: thr,
-            variant: {
-              id: variant.id,
-              sku: variant.sku,
-              name: variant.name,
-              product: { id: product.id, name: product.name },
-            },
-          });
-        }
+    for (const product of products) {
+      const qty = Number(product.stockQuantity ?? 0);
+      if (qty <= thr) {
+        lowStock.push({
+          id: product.id,
+          variantId: product.id,
+          quantity: qty,
+          lowStockThreshold: thr,
+          variant: {
+            id: product.id,
+            sku: product.sku ?? "-",
+            name: product.name ?? "Produk",
+            product: { id: product.id, name: product.name ?? "Produk" },
+          },
+        });
       }
     }
 
@@ -403,11 +421,11 @@ export const adminInventory = {
     return null as unknown as InventoryItem;
   },
 
-  restock: async (variantId: string, quantity: number) => {
-    // Inventory is updated via product update
+  restock: async (productId: string, quantity: number) => {
+    await adminProducts.update(productId, { inventory: quantity });
     return {
-      id: variantId,
-      variantId,
+      id: productId,
+      variantId: productId,
       quantity,
       lowStockThreshold: 10,
     } as InventoryItem;
@@ -425,15 +443,71 @@ export const adminUsers = {
     role?: UserRole;
     search?: string;
   }) => {
-    return { data: { users: [], total: 0, page: 1, limit: 50 } };
+    try {
+      const result = await api.get<Record<string, unknown>>("/admin/users", {
+        page: params?.page ?? 1,
+        limit: params?.limit ?? 50,
+        ...(params?.search && { search: params.search }),
+        ...(params?.role && { role: params.role }),
+      });
+
+      if (!result.success || !result.data) {
+        return { data: { users: [], total: 0, page: 1, limit: 50 } };
+      }
+
+      const data = result.data as Record<string, unknown>;
+      const users = (data.users ?? []) as User[];
+      const pagination = data.pagination as
+        | Record<string, unknown>
+        | undefined;
+
+      return {
+        data: {
+          users,
+          total: (pagination?.total as number) ?? users.length,
+          page: (pagination?.page as number) ?? 1,
+          limit: (pagination?.limit as number) ?? 50,
+        },
+      };
+    } catch {
+      return { data: { users: [], total: 0, page: 1, limit: 50 } };
+    }
   },
 
   getDetail: async (id: string) => {
-    return null as unknown as User;
+    try {
+      const result = await api.get<Record<string, unknown>>(
+        `/admin/users/${id}`,
+      );
+      if (!result.success || !result.data) return null;
+      const data = result.data as Record<string, unknown>;
+      return (data.user ?? data) as User;
+    } catch {
+      return null;
+    }
   },
 
   updateRole: async (id: string, role: UserRole) => {
-    return null as unknown as User;
+    const result = await apiRequest<Record<string, unknown>>(
+      "PATCH",
+      `/admin/users/${id}/role`,
+      { role },
+    );
+    if (!result.success || !result.data)
+      throw new Error("Failed to update user role");
+    const data = result.data as Record<string, unknown>;
+    return (data.user ?? data) as User;
+  },
+
+  toggleActive: async (id: string) => {
+    const result = await apiRequest<Record<string, unknown>>(
+      "PATCH",
+      `/admin/users/${id}/toggle-active`,
+    );
+    if (!result.success || !result.data)
+      throw new Error("Failed to toggle user status");
+    const data = result.data as Record<string, unknown>;
+    return (data.user ?? data) as User;
   },
 };
 
@@ -490,6 +564,9 @@ export const adminExpeditions = {
     code: string;
     type: string;
     pricing?: Record<string, unknown>;
+    basePrice?: number;
+    trackingUrl?: string;
+    description?: string;
     isActive?: boolean;
     isDefault?: boolean;
   }) => {
@@ -499,7 +576,9 @@ export const adminExpeditions = {
         name: data.name,
         code: data.code,
         type: data.type,
-        pricing: data.pricing ?? {},
+        basePrice: data.basePrice ?? 0,
+        ...(data.trackingUrl && { trackingUrl: data.trackingUrl }),
+        ...(data.description && { description: data.description }),
         isActive: data.isActive ?? true,
         isDefault: data.isDefault ?? false,
       },
@@ -516,19 +595,28 @@ export const adminExpeditions = {
       code?: string;
       type?: string;
       pricing?: Record<string, unknown>;
+      basePrice?: number;
+      trackingUrl?: string;
+      description?: string;
       isActive?: boolean;
       isDefault?: boolean;
     },
   ) => {
-    console.log("[adminExpeditions.update] ID:", id);
-    console.log("[adminExpeditions.update] Data:", JSON.stringify(data, null, 2));
+    // Map pricing.flat_rate → basePrice for Express backend
+    const payload: Record<string, unknown> = {};
+    if (data.name !== undefined) payload.name = data.name;
+    if (data.code !== undefined) payload.code = data.code;
+    if (data.type !== undefined) payload.type = data.type;
+    if (data.basePrice !== undefined) payload.basePrice = data.basePrice;
+    if (data.trackingUrl !== undefined) payload.trackingUrl = data.trackingUrl;
+    if (data.description !== undefined) payload.description = data.description;
+    if (data.isActive !== undefined) payload.isActive = data.isActive;
+    if (data.isDefault !== undefined) payload.isDefault = data.isDefault;
     
     const result = await api.put<Record<string, unknown>>(
       `/admin/expeditions/${id}`,
-      data,
+      payload,
     );
-    
-    console.log("[adminExpeditions.update] Response:", result);
     
     if (!result.success || !result.data) return null;
     const res = result.data as Record<string, unknown>;
@@ -568,6 +656,7 @@ export const adminExpeditions = {
       code: exp.code,
       type: exp.type,
       isActive: exp.isActive,
+      basePrice: Number(exp.basePrice ?? 0),
     }));
   },
 };

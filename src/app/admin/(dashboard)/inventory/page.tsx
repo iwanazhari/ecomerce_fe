@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { adminInventory, adminProducts } from "@/services/medusa-admin.service";
+import { adminProducts } from "@/services/admin.service";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import {
   Button,
   Card,
@@ -12,63 +13,30 @@ import {
 } from "@/components/ui/neu";
 import { IconWell } from "@/components/ui/neu/Card";
 import { Boxes, AlertTriangle, Plus, Search, PackageCheck } from "lucide-react";
+import { AdminGuard, RequirePermission } from "@/components/admin/AdminGuard";
 
 type InventoryItem = {
   id: string;
-  sku?: string;
-  title?: string;
-  description?: string;
-  stocked_quantity?: number;
-  reserved_quantity?: number;
-  location_levels?: {
-    location_id: string;
-    stocked_quantity: number;
-    reserved_quantity: number;
-  }[];
+  sku: string;
+  name: string;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  trackInventory: boolean;
+  status: string;
+  imageUrl?: string;
 };
 
 type DisplayItem = {
   id: string;
   sku: string;
-  productName: string; // resolved from product, not inventory item title
-  inventoryTitle: string; // fallback if no product found
+  productName: string;
   quantity: number;
-  reserved: number;
-  available: number;
+  threshold: number;
+  isLow: boolean;
 };
-
-function mapItem(
-  item: InventoryItem,
-  productNames: Record<string, string>,
-): DisplayItem {
-  const totalStocked =
-    item.location_levels?.reduce(
-      (sum, loc) => sum + (loc.stocked_quantity ?? 0),
-      0,
-    ) ??
-    item.stocked_quantity ??
-    0;
-  const totalReserved =
-    item.location_levels?.reduce(
-      (sum, loc) => sum + (loc.reserved_quantity ?? 0),
-      0,
-    ) ??
-    item.reserved_quantity ??
-    0;
-  return {
-    id: item.id,
-    sku: item.sku ?? "-",
-    productName: productNames[item.id] ?? item.title ?? "Produk",
-    inventoryTitle: item.title ?? "Produk",
-    quantity: totalStocked,
-    reserved: totalReserved,
-    available: totalStocked - totalReserved,
-  };
-}
 
 export default function AdminInventoryPage() {
   const [allItems, setAllItems] = useState<DisplayItem[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<DisplayItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [threshold, setThreshold] = useState(10);
@@ -78,45 +46,25 @@ export default function AdminInventoryPage() {
   const [restocking, setRestocking] = useState(false);
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
-      const [productsRes, lowRes] = await Promise.all([
-        adminProducts.list({ limit: 200 }),
-        adminInventory.getLowStock(threshold),
-      ]);
+      const result = await adminProducts.list({ limit: 500 });
+      const products = (result.data ?? []) as any[];
 
-      // Extract inventory items from products
-      const allItems: DisplayItem[] = [];
-      for (const product of productsRes.data ?? []) {
-        const p = product as any;
-        for (const variant of p.variants ?? []) {
-          const quantity = variant.inventory ?? variant.inventory_quantity ?? 0;
-          allItems.push({
-            id: variant.id,
-            sku: variant.sku ?? "-",
-            productName: p.title ?? p.name ?? "Produk",
-            inventoryTitle: variant.title ?? "",
-            quantity,
-            reserved: 0,
-            available: quantity, // Available = quantity - reserved
-          });
-        }
-      }
+      const items: DisplayItem[] = products.map((p) => {
+        const qty = Number(p.stockQuantity ?? 0);
+        const thr = Number(p.lowStockThreshold ?? threshold);
+        return {
+          id: p.id,
+          sku: p.sku ?? "-",
+          productName: p.name ?? "Produk",
+          quantity: qty,
+          threshold: thr,
+          isLow: qty <= thr,
+        };
+      });
 
-      setAllItems(allItems);
-      setLowStockItems(
-        (lowRes.data ?? []).map((item: any) => {
-          const quantity = item.quantity ?? 0;
-          return {
-            id: item.id,
-            sku: item.variant?.sku ?? "-",
-            productName: item.variant?.product?.name ?? item.variant?.title ?? "Produk",
-            inventoryTitle: item.variant?.title ?? "",
-            quantity,
-            reserved: 0,
-            available: quantity,
-          };
-        }),
-      );
+      setAllItems(items);
     } catch (err) {
       console.error("Failed to fetch inventory:", err);
     } finally {
@@ -127,6 +75,23 @@ export default function AdminInventoryPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // WebSocket listener for real-time inventory updates
+  useWebSocket("realtime", (data) => {
+    console.log("[Inventory] realtime event received:", data);
+
+    // Handle stock:updated events - refetch inventory data
+    if (data?.event === "stock:updated") {
+      console.log("[Inventory] Stock updated, refetching...");
+      fetchData();
+    }
+
+    // Handle cache:invalidated events with inventory type
+    if (data?.event === "cache:invalidated" && data?.data?.type === "inventory") {
+      console.log("[Inventory] Cache invalidated, refetching...");
+      fetchData();
+    }
+  }, true);
 
   const openRestock = (item: DisplayItem) => {
     setRestockItem(item);
@@ -139,7 +104,7 @@ export default function AdminInventoryPage() {
     setRestocking(true);
     try {
       const newQty = restockItem.quantity + parseInt(restockQty);
-      await adminInventory.restock(restockItem.id, newQty);
+      await adminProducts.update(restockItem.id, { inventory: newQty });
       setRestockModalOpen(false);
       setRestockItem(null);
       fetchData();
@@ -150,6 +115,7 @@ export default function AdminInventoryPage() {
     }
   };
 
+  const lowStockItems = allItems.filter((item) => item.isLow);
   const filtered = allItems.filter(
     (item) =>
       !search ||
@@ -166,7 +132,8 @@ export default function AdminInventoryPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <AdminGuard requirePermissions={["inventory:read"]}>
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -227,13 +194,15 @@ export default function AdminInventoryPage() {
                   <span className="text-lg font-extrabold text-error">
                     {item.quantity}
                   </span>
-                  <button
-                    onClick={() => openRestock(item)}
-                    className="size-10 rounded-2xl shadow-extruded-sm bg-primary text-white flex items-center justify-center hover:shadow-extruded-lg transition-all"
-                    aria-label="Restock"
-                  >
-                    <Plus className="size-4" />
-                  </button>
+                  <RequirePermission permission="inventory:update">
+                    <button
+                      onClick={() => openRestock(item)}
+                      className="size-10 rounded-2xl shadow-extruded-sm bg-primary text-white flex items-center justify-center hover:shadow-extruded-lg transition-all"
+                      aria-label="Restock"
+                    >
+                      <Plus className="size-4" />
+                    </button>
+                  </RequirePermission>
                 </div>
               </div>
             ))}
@@ -257,7 +226,7 @@ export default function AdminInventoryPage() {
                   Stok
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-foreground-muted uppercase tracking-wider shadow-inset-small">
-                  Tersedia
+                  Threshold
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-foreground-muted uppercase tracking-wider shadow-inset-small">
                   Status
@@ -280,7 +249,6 @@ export default function AdminInventoryPage() {
                 </tr>
               ) : (
                 filtered.map((item) => {
-                  const isLow = item.quantity <= threshold;
                   return (
                     <tr
                       key={item.id}
@@ -298,23 +266,25 @@ export default function AdminInventoryPage() {
                         {item.quantity}
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
-                        {item.available}
+                        {item.threshold}
                       </td>
                       <td className="px-6 py-4">
-                        {isLow ? (
+                        {item.isLow ? (
                           <Badge variant="error">Stok Rendah</Badge>
                         ) : (
                           <Badge variant="success">Aman</Badge>
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => openRestock(item)}
-                          className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-primary active:shadow-inset-deep transition-all"
-                          aria-label="Restock"
-                        >
-                          <Plus className="size-4" />
-                        </button>
+                        <RequirePermission permission="inventory:update">
+                          <button
+                            onClick={() => openRestock(item)}
+                            className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-primary active:shadow-inset-deep transition-all"
+                            aria-label="Restock"
+                          >
+                            <Plus className="size-4" />
+                          </button>
+                        </RequirePermission>
                       </td>
                     </tr>
                   );
@@ -387,5 +357,6 @@ export default function AdminInventoryPage() {
         )}
       </Modal>
     </div>
+    </AdminGuard>
   );
 }

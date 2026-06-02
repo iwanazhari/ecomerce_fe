@@ -45,7 +45,7 @@ export function mapBackendUser(
     firstName: (user.firstName as string | null) ?? null,
     lastName: (user.lastName as string | null) ?? null,
     phone: (user.phone as string | null) ?? null,
-    avatar: (user.avatarUrl as string | null) ?? null,
+    avatar: (user.avatar as string | null) ?? null,
     role: ((user.role as string) ?? role ?? "CUSTOMER") as User["role"],
     isActive: (user.isActive as boolean) ?? true,
     lastLoginAt: (user.lastLoginAt as string | null) ?? null,
@@ -59,58 +59,72 @@ export function mapBackendUser(
 // ─────────────────────────────────────────────
 
 export function mapBackendProduct(product: Record<string, unknown>): Product {
-  const variants = ((product.variants as Record<string, unknown>[]) ?? []).map(
-    (v) => mapBackendVariant(v, product.id as string),
-  );
+  // Create synthetic variant from basePrice/salePrice since API has no variants table
+  const basePrice = Number(product.basePrice ?? 0);
+  const salePrice = Number(product.salePrice ?? 0);
+  const compareAtPrice = Number(product.compareAtPrice ?? 0);
+  const finalPrice = salePrice || basePrice;
+  const variants: ProductVariant[] = [
+    {
+      id: `${product.id}-default`,
+      productId: product.id as string,
+      sku: (product.sku as string) ?? "",
+      name: "Default",
+      price: finalPrice,
+      comparePrice: compareAtPrice || (salePrice ? basePrice : null),
+      costPrice: null,
+      weight: null,
+      options: {},
+      isActive: true,
+    },
+  ];
 
-  const images = ((product.images as Record<string, unknown>[]) ?? []).map(
-    (img, i) => ({
-      id: (img.id as string) ?? `img-${i}`,
-      url: (img.url as string) ?? "",
-      alt: null,
-      sortOrder: (img.rank as number) ?? i,
-      isPrimary: i === 0,
-    }),
-  );
+  // Map ProductImage (singular, array) from API response
+  const rawImages = (product.ProductImage as Record<string, unknown>[]) ?? [];
+  const images: ProductImage[] = rawImages.map((img, i) => ({
+    id: (img.id as string) ?? `img-${i}`,
+    url: (img.url as string) ?? "",
+    alt: null,
+    sortOrder: (img.position as number) ?? i,
+    isPrimary: i === 0,
+  }));
 
-  // Fallback to thumbnail if no images
-  if (images.length === 0 && product.thumbnail) {
-    images.push({
-      id: "thumb-fallback",
-      url: product.thumbnail as string,
-      alt: null,
-      sortOrder: 0,
-      isPrimary: true,
-    });
-  }
+  // Map Category (singular object) from API response
+  const rawCategory = product.Category as Record<string, unknown> | undefined;
+  const categories: Category[] = rawCategory
+    ? [
+        {
+          id: rawCategory.id as string,
+          name: (rawCategory.name as string) ?? "",
+          slug: (rawCategory.slug as string) ?? "",
+          description: null,
+          image: null,
+          parentId: null,
+          isActive: true,
+          sortOrder: 0,
+        },
+      ]
+    : [];
 
-  const categories = (
-    (product.categories as Record<string, unknown>[]) ?? []
-  ).map(
-    (c) =>
-      ({
-        id: c.id as string,
-        name: (c.name as string) ?? "",
-        slug: (c.handle as string) ?? (c.name as string)?.toLowerCase() ?? "",
-        description: null,
-        image: null,
-        parentId: null,
-        isActive: (c.isActive as boolean) ?? true,
-        sortOrder: 0,
-      }) as Category,
-  );
+  // Determine thumbnail: first ProductImage url
+  const thumbnail = images.length > 0 ? images[0].url : undefined;
+
+  // Status mapping: API returns enum ProductStatus (draft/active/inactive/archived)
+  const apiStatus = (product.status as string) ?? "draft";
+  const status: Product["status"] =
+    apiStatus === "active" ? "published" : "draft";
 
   return {
     id: product.id as string,
-    name: (product.title as string) ?? "",
-    slug: (product.handle as string) ?? "",
+    name: (product.name as string) ?? "",
+    slug: (product.slug as string) ?? "",
     description: (product.description as string | null) ?? null,
-    shortDescription: null,
-    thumbnail: (product.thumbnail as string) ?? undefined,
-    status: (product.isActive as boolean) === false ? "draft" : "published",
-    brand: null,
+    shortDescription: (product.longDescription as string | null) ?? null,
+    thumbnail,
+    status,
+    brand: (product.brandId as string | null) ?? null,
     weight: null,
-    isActive: (product.isActive as boolean) ?? true,
+    isActive: apiStatus === "active",
     categories,
     variants,
     images,
@@ -299,7 +313,9 @@ export function mapBackendOrder(order: Record<string, unknown>): Order {
     (order.OrderItem ?? order.items ?? []) as Record<string, unknown>[]
   ).map((item) => mapBackendOrderItem(item));
 
-  const total = toMoney(order.total as string | number | null | undefined);
+  const total = toMoney(
+    (order.totalAmount ?? order.total) as string | number | null | undefined,
+  );
   const subtotal = toMoney(
     order.subtotal as string | number | null | undefined,
   );

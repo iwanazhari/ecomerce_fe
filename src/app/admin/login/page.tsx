@@ -31,13 +31,27 @@ function LoginForm() {
       if (!res.success || !res.data) {
         throw new Error((res as any).meta?.error?.message ?? 'Login gagal')
       }
-      
-      // Invalidate profile query to trigger refetch with new token
-      queryClient.invalidateQueries({ queryKey: ['auth', 'profile'] })
-      
+
+      // Check role from login response user object
+      const loginUser = (res.data as any).user
+      const userRole = loginUser?.role
+
+      const adminRoles = ['ADMIN', 'SUPER_ADMIN', 'ADMIN_OPERASIONAL', 'ADMIN_MERCHANDISE']
+      if (userRole && !adminRoles.includes(userRole)) {
+        throw new Error('Akun Anda tidak memiliki akses ke dashboard admin')
+      }
+
+      // Store token as cookie for middleware
+      const token = (res.data as any).tokens?.accessToken
+      if (token && typeof document !== 'undefined') {
+        document.cookie = `wp_access_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+        // Notify AuthProvider that token changed
+        window.dispatchEvent(new Event('auth:token-changed'))
+      }
+
       // Redirect to admin dashboard
       router.push(redirect)
-      router.refresh() // Force refresh to reload auth context
+      router.refresh()
     } catch (err: any) {
       setError(err.message ?? 'Terjadi kesalahan')
     } finally {

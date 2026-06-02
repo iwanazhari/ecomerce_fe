@@ -8,6 +8,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const hasToken = request.cookies.has('access_token') || request.cookies.has('wp_access_token')
 
+  // Redirect /admin/orders/:id to /admin/orders (detail handled via modal)
+  if (pathname.startsWith('/admin/orders/') && pathname !== '/admin/orders') {
+    return NextResponse.redirect(new URL('/admin/orders', request.url))
+  }
+
   // Redirect authenticated users away from auth pages
   if (hasToken && authPaths.some((p) => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL('/', request.url))
@@ -21,5 +26,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/login', '/register', '/forgot-password', '/reset-password'],
+  matcher: ['/login', '/register', '/forgot-password', '/reset-password', '/admin/orders/:id'],
 }

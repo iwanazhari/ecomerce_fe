@@ -27,6 +27,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
+import { AdminGuard } from "@/components/admin/AdminGuard";
 
 type MedusaOrder = {
   id: string;
@@ -42,11 +43,22 @@ type MedusaOrder = {
     last_name?: string | null;
   } | null;
   created_at?: string | null;
+  // Items for product name extraction
+  items?: Array<{
+    product_name?: string | null;
+    product?: { name?: string | null } | null;
+    title?: string | null;
+  }> | null;
+  OrderItem?: Array<{
+    productName?: string | null;
+    product?: { name?: string | null; id?: string } | null;
+  }> | null;
 };
 
 type DashboardOrder = {
   id: string;
   orderNumber: string;
+  productName: string;
   customer: {
     firstName?: string | null;
     lastName?: string | null;
@@ -92,12 +104,23 @@ function mapOrder(order: MedusaOrder & { paymentStatus?: string; payment?: { tra
     mappedPaymentStatus = paymentStatusMap[order.payment_status] ?? "not_paid";
   }
 
+  // Extract first product name from items (support both Medusa-style and Express-style)
+  const firstItem: Record<string, unknown> | null | undefined =
+    (order.items as any)?.[0] ?? (order.OrderItem as any)?.[0] ?? null;
+  const productName =
+    (firstItem?.product_name as string) ??
+    (firstItem?.product as any)?.name ??
+    (firstItem?.title as string) ??
+    (firstItem?.productName as string) ??
+    "";
+
   return {
     id: order.id,
     orderNumber:
       order.display_id != null
         ? `ORD-${String(order.display_id).padStart(4, "0")}`
         : order.id.slice(-8).toUpperCase(),
+    productName: productName || `Pesanan #${order.display_id ?? order.id.slice(-8)}`,
     customer: {
       firstName: order.customer?.first_name,
       lastName: order.customer?.last_name,
@@ -217,7 +240,7 @@ export default function AdminDashboardPage() {
       console.log("[Dashboard] Cache invalidated:", data.type);
       
       // Refetch dashboard if product, order, or inventory cache is invalidated
-      if (data?.type === "product" || data?.type === "order" || data?.type === "inventory") {
+      if (data?.data?.type === "product" || data?.data?.type === "order" || data?.data?.type === "inventory") {
         console.log("[Dashboard] Refetching dashboard data...");
         fetchData();
       }
@@ -257,7 +280,8 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <AdminGuard>
+      <div className="space-y-8">
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
@@ -313,15 +337,15 @@ export default function AdminDashboardPage() {
                 recentOrders.map((order) => (
                   <Link
                     key={order.id}
-                    href={`${ROUTES.ADMIN_ORDERS}/${order.id}`}
+                    href={ROUTES.ADMIN_ORDERS}
                     className="p-5 flex items-center justify-between hover:bg-primary/5 transition-colors"
                   >
                     <div>
                       <p className="font-bold text-foreground">
-                        {order.orderNumber}
+                        {order.productName}
                       </p>
                       <p className="text-sm text-foreground-muted">
-                        {order.customer.firstName} {order.customer.lastName}
+                        {order.orderNumber}
                       </p>
                     </div>
                     <div className="text-right">
@@ -392,5 +416,6 @@ export default function AdminDashboardPage() {
         </div>
       </div>
     </div>
+    </AdminGuard>
   );
 }

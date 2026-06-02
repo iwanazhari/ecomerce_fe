@@ -4,10 +4,11 @@ import { ReactNode, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuthContext'
+import { usePermission } from '@/hooks/usePermission'
 import { ROUTES } from '@/constants'
 import {
   LayoutDashboard, Package, ShoppingCart, Tag, Boxes, BarChart3, Truck, MapPin,
-  LogOut, Menu, X, Store,
+  LogOut, Menu, X, Store, Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/neu/Button'
 
@@ -15,23 +16,15 @@ interface SidebarItem {
   label: string
   href: string
   icon: ReactNode
+  /** Permission required to see this item (optional) */
+  permission?: string
 }
-
-const sidebarItems: SidebarItem[] = [
-  { label: 'Dashboard', href: ROUTES.ADMIN, icon: <LayoutDashboard className="size-5" /> },
-  { label: 'Produk', href: ROUTES.ADMIN_PRODUCTS, icon: <Package className="size-5" /> },
-  { label: 'Pesanan', href: ROUTES.ADMIN_ORDERS, icon: <ShoppingCart className="size-5" /> },
-  { label: 'Kategori', href: ROUTES.ADMIN_CATEGORIES, icon: <Tag className="size-5" /> },
-  { label: 'Inventori', href: ROUTES.ADMIN_INVENTORY, icon: <Boxes className="size-5" /> },
-  { label: 'Ekspedisi', href: ROUTES.ADMIN_EXPEDITIONS, icon: <Truck className="size-5" /> },
-  { label: 'Provinsi', href: ROUTES.ADMIN_PROVINCES, icon: <MapPin className="size-5" /> },
-  { label: 'Analitik', href: ROUTES.ADMIN_ANALYTICS, icon: <BarChart3 className="size-5" /> },
-]
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { isAdmin, isSuperAdmin, isLoading, user } = useAuth()
+  const { can } = usePermission()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -42,6 +35,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       router.replace('/admin/login')
     }
   }, [mounted, isLoading, isAdmin, isSuperAdmin, router])
+
+  const sidebarItems: SidebarItem[] = [
+    { label: 'Dashboard', href: ROUTES.ADMIN, icon: <LayoutDashboard className="size-5" /> },
+    { label: 'Produk', href: ROUTES.ADMIN_PRODUCTS, icon: <Package className="size-5" />, permission: 'products:read' },
+    { label: 'Pesanan', href: ROUTES.ADMIN_ORDERS, icon: <ShoppingCart className="size-5" />, permission: 'orders:read' },
+    { label: 'Kategori', href: ROUTES.ADMIN_CATEGORIES, icon: <Tag className="size-5" />, permission: 'categories:read' },
+    { label: 'Inventori', href: ROUTES.ADMIN_INVENTORY, icon: <Boxes className="size-5" />, permission: 'inventory:read' },
+    { label: 'Ekspedisi', href: ROUTES.ADMIN_EXPEDITIONS, icon: <Truck className="size-5" />, permission: 'expeditions:read' },
+    { label: 'Provinsi', href: ROUTES.ADMIN_PROVINCES, icon: <MapPin className="size-5" />, permission: 'provinces:read' },
+    { label: 'Analitik', href: ROUTES.ADMIN_ANALYTICS, icon: <BarChart3 className="size-5" />, permission: 'analytics:read' },
+    { label: 'Pengguna', href: ROUTES.ADMIN_USERS, icon: <Users className="size-5" />, permission: 'users:read' },
+  ]
 
   if (!mounted || isLoading) {
     return (
@@ -80,27 +85,33 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
         {/* Nav */}
         <nav className="p-4 space-y-2">
-          {sidebarItems.map((item) => {
-            // Exact match, or sub-path for non-root items (e.g. /admin/products/sub-page)
-            const isActive = item.href === ROUTES.ADMIN
-              ? pathname === item.href
-              : pathname === item.href || pathname?.startsWith(item.href + '/')
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-extruded'
-                    : 'text-foreground-muted hover:text-foreground hover:shadow-inset-small'
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            )
-          })}
+          {sidebarItems
+            .filter((item) => {
+              // SUPER_ADMIN sees everything; otherwise check permission
+              if (isSuperAdmin) return true
+              if (!item.permission) return true
+              return can(item.permission as any)
+            })
+            .map((item) => {
+              const isActive = item.href === ROUTES.ADMIN
+                ? pathname === item.href
+                : pathname === item.href || pathname?.startsWith(item.href + '/')
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-extruded'
+                      : 'text-foreground-muted hover:text-foreground hover:shadow-inset-small'
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              )
+            })}
         </nav>
 
         {/* Footer */}

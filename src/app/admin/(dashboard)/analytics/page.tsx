@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Clock,
 } from "lucide-react";
+import { AdminGuard } from "@/components/admin/AdminGuard";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function AdminAnalyticsPage() {
@@ -60,11 +61,12 @@ export default function AdminAnalyticsPage() {
     return "not_paid";
   };
 
-  // Format order number (same as orders page)
-  const formatOrderNumber = (order: any) => {
-    return order.display_id != null
-      ? `ORD-${String(order.display_id).padStart(4, "0")}`
-      : order.id.slice(-8).toUpperCase();
+  const getFirstProductName = (order: any): string => {
+    const items = order.OrderItem ?? order.items ?? [];
+    if (items.length > 0) {
+      return items[0].productName ?? items[0].product?.name ?? items[0].title ?? "Produk";
+    }
+    return "Produk";
   };
 
   const fetchData = useCallback(async () => {
@@ -91,12 +93,12 @@ export default function AdminAnalyticsPage() {
           // Check OrderItem array - might be OrderItem[] or items[]
           const orderItems = order.OrderItem ?? order.items ?? [];
           orderItems.forEach((item: any) => {
-            // Get product name from nested structure
-            const name = item.product?.title ?? item.variant?.product?.title ?? item.title ?? "Produk";
+            // Get product name from Express backend field
+            const name = item.productName ?? item.product?.name ?? item.title ?? "Produk";
             if (!productCount[name])
               productCount[name] = { name, count: 0, revenue: 0 };
             productCount[name].count += item.quantity ?? 0;
-            productCount[name].revenue += (item.price ?? item.unit_price ?? 0) * (item.quantity ?? 0);
+            productCount[name].revenue += Number(item.unitPrice ?? item.price ?? 0) * (item.quantity ?? 0);
           });
         });
         setTopProducts(
@@ -106,12 +108,13 @@ export default function AdminAnalyticsPage() {
         );
       }
       
-      // Map orders with payment status and order number
+      // Map orders — show product name + customer name, fix totalAmount
       const rawOrders = ordersRes.data ?? [];
       setRecentOrders(rawOrders.map((order: any) => ({
         ...order,
         mappedPaymentStatus: mapPaymentStatus(order),
-        formattedOrderNumber: formatOrderNumber(order),
+        productName: getFirstProductName(order),
+        customerLabel: order.customerName ?? order.customer?.name ?? order.customer?.first_name ?? "Pelanggan",
       })));
     } catch (err) {
       console.error(err);
@@ -133,7 +136,7 @@ export default function AdminAnalyticsPage() {
       console.log("[Analytics] Cache invalidated:", data.type);
       
       // Refetch analytics if product or order cache is invalidated
-      if (data?.type === "product" || data?.type === "order") {
+      if (data?.data?.type === "product" || data?.data?.type === "order") {
         console.log("[Analytics] Refetching analytics data...");
         fetchData();
       }
@@ -160,7 +163,8 @@ export default function AdminAnalyticsPage() {
     );
 
   return (
-    <div className="space-y-8">
+    <AdminGuard requirePermissions={["analytics:read"]}>
+      <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
           Analitik
@@ -269,17 +273,17 @@ export default function AdminAnalyticsPage() {
                 key={order.id}
                 className="p-5 flex items-center justify-between"
               >
-                <div>
-                  <p className="font-bold text-foreground">
-                    {order.formattedOrderNumber}
+                <div className="min-w-0 flex-1 mr-4">
+                  <p className="font-bold text-foreground truncate">
+                    {order.productName}
                   </p>
-                  <p className="text-xs text-foreground-muted">
-                    {order.email ?? order.customer?.email ?? "Pelanggan"}
+                  <p className="text-xs text-foreground-muted truncate">
+                    {order.customerLabel}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <p className="font-bold text-foreground">
-                    {formatCurrency(order.total ?? 0)}
+                    {formatCurrency(Number(order.totalAmount ?? order.total ?? 0))}
                   </p>
                   <Badge
                     variant={
@@ -303,5 +307,6 @@ export default function AdminAnalyticsPage() {
         </div>
       </Card>
     </div>
+    </AdminGuard>
   );
 }

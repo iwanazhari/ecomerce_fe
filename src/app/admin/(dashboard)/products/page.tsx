@@ -36,28 +36,42 @@ import {
   Plus as PlusIcon,
   Loader2,
 } from "lucide-react";
+import { AdminGuard, RequirePermission } from "@/components/admin/AdminGuard";
 
-type MedusaProduct = {
+type ExpressProduct = {
   id: string;
-  title: string;
-  handle: string;
-  description?: string;
-  thumbnail?: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  basePrice?: number | string;
+  salePrice?: number | string | null;
+  stockQuantity?: number | null;
+  sku?: string | null;
   status?: string;
-  isActive?: boolean; // Express backend uses isActive
-  created_at?: string;
-  variants?: {
+  isFeatured?: boolean;
+  isBestseller?: boolean;
+  isNewArrival?: boolean;
+  thumbnail?: string | null;
+  categoryId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  // Relations from Prisma
+  ProductImage?: Array<{
     id: string;
-    title: string;
-    sku?: string;
-    price?: string | number; // Express backend returns price directly
-    prices?: { amount: number; currency_code: string }[];
-    inventory?: number; // Express backend returns inventory directly
-    inventory_quantity?: number;
-    inventory_items?: { inventory_item_id: string }[];
-  }[];
-  images?: { id: string; url: string; alt?: string }[];
-  categories?: { id: string; name: string; handle: string }[];
+    url: string;
+    altText?: string | null;
+    position?: number;
+    isPrimary?: boolean;
+  }>;
+  Category?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+  Brand?: {
+    id: string;
+    name: string;
+  } | null;
 };
 
 type DisplayProduct = {
@@ -76,28 +90,33 @@ type DisplayProduct = {
   categoryId?: string;
 };
 
-function mapProduct(p: MedusaProduct): DisplayProduct {
-  const firstVariant = p.variants?.[0];
+function mapProduct(p: ExpressProduct): DisplayProduct {
+  // Express backend (Prisma) returns price, stock, sku directly on the product
+  const rawPrice = p.basePrice ?? 0;
+  const priceNum = typeof rawPrice === "string" ? parseInt(rawPrice, 10) : Number(rawPrice);
 
-  // Express backend returns price directly on variant, not nested in prices array
-  const variantPrice = firstVariant?.price ?? firstVariant?.prices?.[0]?.amount;
-  const priceNum = typeof variantPrice === "string" ? parseInt(variantPrice, 10) : variantPrice;
+  // Prisma ProductStatus enum: draft | active | inactive | archived
+  // Frontend display uses: published (= active) or draft
+  const displayStatus = 
+    p.status === "active" ? "published" :
+    p.status === "draft" ? "draft" :
+    p.status === "inactive" ? "draft" :
+    p.status === "archived" ? "draft" : "draft";
 
   return {
     id: p.id,
-    name: p.title,
-    slug: p.handle,
-    price: priceNum ?? 0,
-    thumbnail: p.thumbnail ?? p.images?.[0]?.url,
-    // Convert isActive (backend) to status (frontend)
-    status: p.isActive ? "published" : "draft",
-    variantCount: p.variants?.length ?? 0,
-    imageCount: p.images?.length ?? 0,
-    category: p.categories?.[0]?.name,
-    stock: firstVariant?.inventory ?? firstVariant?.inventory_quantity ?? 0,
-    description: p.description,
-    sku: firstVariant?.sku,
-    categoryId: p.categories?.[0]?.id,
+    name: p.name,
+    slug: p.slug,
+    price: priceNum || 0,
+    thumbnail: p.ProductImage?.[0]?.url ?? p.thumbnail ?? undefined,
+    status: displayStatus,
+    variantCount: 1, // Prisma products are single-variant
+    imageCount: p.ProductImage?.length ?? 0,
+    category: p.Category?.name,
+    stock: p.stockQuantity ?? 0,
+    description: p.description ?? undefined,
+    sku: p.sku ?? undefined,
+    categoryId: p.categoryId ?? undefined,
   };
 }
 
@@ -133,7 +152,6 @@ export default function AdminProductsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
-  const [pendingRefetch, setPendingRefetch] = useState(false); // Track pending refetch after save
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -214,8 +232,8 @@ export default function AdminProductsPage() {
 
     // Handle stock:updated events - update status badge optimistically
     if (data?.event === "stock:updated" && data?.data?.productId) {
-      const { productId, isActive } = data.data;
-      const newStatus = isActive === true ? "published" : "draft";
+      const { productId, status: productStatus } = data.data;
+      const newStatus = productStatus === "active" ? "published" : productStatus === "draft" ? "draft" : "draft";
 
       console.log("[WebSocket] Updating product", productId, "status to:", newStatus);
       setProducts(prev => prev.map(p => {
@@ -225,13 +243,8 @@ export default function AdminProductsPage() {
         return p;
       }));
 
-      // Schedule a refetch after 2 seconds to sync with backend
-      setPendingRefetch(true);
-      setTimeout(() => {
-        console.log("[WebSocket] Executing pending refetch");
-        fetchData(true);
-        setPendingRefetch(false);
-      }, 2000);
+      // Refetch immediately — backend already committed the transaction
+      fetchData(true);
     }
 
     // Handle cache:invalidated events - refetch data for ALL admin pages
@@ -239,18 +252,13 @@ export default function AdminProductsPage() {
       console.log("[WebSocket] Cache invalidated:", data);
       
       // Product cache invalidation - refetch products list
-      if (data?.type === "product") {
-        console.log("[WebSocket] Product cache invalidated, scheduling refetch...");
-        setPendingRefetch(true);
-        setTimeout(() => {
-          console.log("[WebSocket] Refetching products data");
-          fetchData(true);
-          setPendingRefetch(false);
-        }, 1000);
+      if (data?.data?.type === "product") {
+        console.log("[WebSocket] Product cache invalidated, refetching...");
+        fetchData(true);
       }
       
       // Order cache invalidation - can be used by orders page
-      if (data?.type === "order") {
+      if (data?.data?.type === "order") {
         console.log("[WebSocket] Order cache invalidated");
         // Orders page can listen to this and refetch
       }
@@ -304,59 +312,50 @@ export default function AdminProductsPage() {
       
       console.log("[openEdit] Full product from backend:", {
         id: fullProduct?.id,
-        title: fullProduct?.title,
-        isActive: fullProduct?.isActive,
+        name: fullProduct?.name,
         status: fullProduct?.status,
+        basePrice: fullProduct?.basePrice,
       });
-      
-      const firstVariant = fullProduct?.variants?.[0];
 
-      // Express backend returns price directly on variant, not nested in prices array
-      const variantPrice = firstVariant?.price ?? firstVariant?.prices?.[0]?.amount;
-      const invItemId = firstVariant?.inventory_items?.[0]?.inventory_item_id;
-
-      // Set price from backend data
-      if (variantPrice != null) {
-        const priceNum = typeof variantPrice === "string" ? parseInt(variantPrice, 10) : variantPrice;
+      // Express backend (Prisma): price is on product.basePrice directly
+      const rawPrice = fullProduct?.basePrice ?? product.price;
+      if (rawPrice != null) {
+        const priceNum = typeof rawPrice === "string" ? parseInt(rawPrice, 10) : Number(rawPrice);
         setFormPriceRaw(String(priceNum));
-        setFormPrice(
-          priceNum > 0 ? formatCurrency(priceNum) : "",
-        );
+        setFormPrice(priceNum > 0 ? formatCurrency(priceNum) : "");
       } else {
-        // Fallback to list data if backend doesn't have price
         const price = product.price ?? 0;
         setFormPriceRaw(String(price));
         setFormPrice(price > 0 ? formatCurrency(price) : "");
       }
 
-      // Set status from backend data (convert isActive to status)
-      console.log("[openEdit] Setting formStatus from isActive:", fullProduct?.isActive);
-      if (fullProduct?.isActive !== undefined) {
-        const newStatus = fullProduct.isActive ? "published" : "draft";
+      // Set status from backend data (Prisma uses status field: draft | active | inactive | archived)
+      console.log("[openEdit] Setting formStatus from status:", fullProduct?.status);
+      if (fullProduct?.status != null) {
+        // Map Prisma status to frontend status
+        const newStatus = fullProduct.status === "active" ? "published" : "draft";
         console.log("[openEdit] Form status set to:", newStatus);
         setFormStatus(newStatus);
       } else {
-        console.warn("[openEdit] isActive is undefined, keeping previous status");
+        console.warn("[openEdit] status is undefined, keeping previous status");
       }
 
-      setVariantId(firstVariant?.id ?? "");
-      setInventoryItemId(invItemId ?? "");
+      setVariantId(fullProduct?.id ?? "");
+      setInventoryItemId("");
 
-      // Load existing images
-      const existingImages: UploadedImage[] = (fullProduct?.images ?? []).map(
+      // Load existing images from ProductImage relation
+      const existingImages: UploadedImage[] = (fullProduct?.ProductImage ?? []).map(
         (img: any, i: number) => ({
           id: img.id,
           url: img.url,
-          isPrimary: i === 0,
+          isPrimary: i === 0 || img.isPrimary === true,
         }),
       );
       setFormImages(existingImages);
 
-      // Use variant's inventory directly (Express backend returns inventory on variant)
-      if (firstVariant?.inventory != null) {
-        setFormStock(String(firstVariant.inventory));
-      } else if (firstVariant?.inventory_quantity != null) {
-        setFormStock(String(firstVariant.inventory_quantity));
+      // Use stockQuantity directly from product (Prisma)
+      if (fullProduct?.stockQuantity != null) {
+        setFormStock(String(fullProduct.stockQuantity));
       }
     } catch (err) {
       console.error("Failed to load product details:", err);
@@ -374,15 +373,13 @@ export default function AdminProductsPage() {
       if (modalMode === "create") {
         const priceNum = parseInt(formPriceRaw) || 0;
         const stockNum = parseInt(formStock) || 0;
-        const primaryImage =
-          formImages.find((i) => i.isPrimary) ?? formImages[0];
 
         // Send uploaded images to backend
         await adminProducts.create({
           title: formTitle,
           description: formDescription || undefined,
           status: formStatus as any,
-          ...(formCategoryId && { categories: [{ id: formCategoryId }] }),
+          categoryId: formCategoryId || undefined,
           price: priceNum,
           inventory: stockNum,
           images: formImages.map((img, index) => ({
@@ -395,14 +392,12 @@ export default function AdminProductsPage() {
         const priceNum = parseInt(formPriceRaw) || 0;
         const stockNum = parseInt(formStock) || 0;
 
-        // Update product details — send images directly via apiRequest to bypass service layer bug
+        // Update product details
         const updatePayload: any = {
           title: formTitle,
           description: formDescription || undefined,
           status: formStatus,
-          ...(formCategoryId
-            ? { categories: [{ id: formCategoryId }] }
-            : { categories: [] }),
+          categoryId: formCategoryId || undefined,
           price: priceNum,
           inventory: stockNum,
         };
@@ -459,7 +454,8 @@ export default function AdminProductsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <AdminGuard requirePermissions={["products:read"]}>
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -468,10 +464,12 @@ export default function AdminProductsPage() {
           </h1>
           <p className="text-sm text-foreground-muted">{total} produk total</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" />
-          Tambah Produk
-        </Button>
+        <RequirePermission permission="products:create">
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            Tambah Produk
+          </Button>
+        </RequirePermission>
       </div>
 
       {/* Search */}
@@ -535,12 +533,32 @@ export default function AdminProductsPage() {
                     className="hover:bg-primary/5 transition-colors"
                   >
                     <td className="px-6 py-4">
-                      <p className="font-bold text-foreground">
-                        {product.name}
-                      </p>
-                      <p className="text-xs text-foreground-muted">
-                        {product.slug}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        {product.thumbnail ? (
+                          <div className="size-10 rounded-xl overflow-hidden bg-surface shadow-inset shrink-0">
+                            <img
+                              src={product.thumbnail}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = "none";
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="size-10 rounded-xl bg-surface shadow-inset flex items-center justify-center shrink-0">
+                            <ImageOff className="size-4 text-foreground-subtle" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-bold text-foreground">
+                            {product.name}
+                          </p>
+                          <p className="text-xs text-foreground-muted">
+                            {product.slug}
+                          </p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-foreground-muted">
                       {product.category || "-"}
@@ -551,8 +569,20 @@ export default function AdminProductsPage() {
                     <td className="px-6 py-4 text-sm text-foreground-muted">
                       {product.variantCount}
                     </td>
-                    <td className="px-6 py-4 text-sm text-foreground-muted">
-                      {product.imageCount}
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-foreground-muted">
+                        {product.imageCount > 0 ? (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="size-2 rounded-full bg-success" />
+                            {product.imageCount}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="size-2 rounded-full bg-foreground-subtle" />
+                            0
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={product.status} />
@@ -566,16 +596,18 @@ export default function AdminProductsPage() {
                         >
                           <Pencil className="size-4" />
                         </button>
-                        <button
-                          onClick={() => {
-                            setDeleteId(product.id);
-                            setDeleteModalOpen(true);
-                          }}
-                          className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-error active:shadow-inset-deep transition-all"
-                          aria-label="Hapus"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+                        <RequirePermission permission="products:delete">
+                          <button
+                            onClick={() => {
+                              setDeleteId(product.id);
+                              setDeleteModalOpen(true);
+                            }}
+                            className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-error active:shadow-inset-deep transition-all"
+                            aria-label="Hapus"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </RequirePermission>
                       </div>
                     </td>
                   </tr>
@@ -834,5 +866,6 @@ export default function AdminProductsPage() {
         </div>
       </Modal>
     </div>
+    </AdminGuard>
   );
 }

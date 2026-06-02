@@ -52,7 +52,7 @@ export function ImageGallery({
 
   return (
     <div className="group">
-      {/* Main Image */}
+      {/* Main Image — first image gets priority for LCP optimization */}
       <div className={cn('relative overflow-hidden rounded-xl border border-border bg-background', aspectClass)}>
         <Image
           src={getImageUrl(currentImage.url)}
@@ -60,6 +60,7 @@ export function ImageGallery({
           fill
           className="object-cover transition-transform duration-300"
           sizes="(max-width: 1024px) 100vw, 50vw"
+          priority={currentIndex === 0}
         />
 
         {/* Navigation Arrows */}
@@ -109,6 +110,7 @@ export function ImageGallery({
                 fill
                 className="object-cover"
                 sizes="64px"
+                loading="lazy"
               />
             </button>
           ))}

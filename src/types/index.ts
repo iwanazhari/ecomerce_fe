@@ -27,7 +27,86 @@ export interface ApiError {
 // Auth
 // ============================================================
 
-export type UserRole = "CUSTOMER" | "ADMIN" | "SUPER_ADMIN";
+export type UserRole = "CUSTOMER" | "ADMIN" | "SUPER_ADMIN" | "CONTENT_MANAGER" | "SALES_REP";
+
+// ============================================================
+// Permissions — fine-grained access control
+// ============================================================
+
+export type Permission =
+  | "products:read"
+  | "products:create"
+  | "products:update"
+  | "products:delete"
+  | "products:archive"
+  | "orders:read"
+  | "orders:update"
+  | "orders:cancel"
+  | "orders:refund"
+  | "categories:read"
+  | "categories:create"
+  | "categories:update"
+  | "categories:delete"
+  | "users:read"
+  | "users:update"
+  | "users:updateRole"
+  | "users:activate"
+  | "analytics:read"
+  | "expeditions:read"
+  | "expeditions:update"
+  | "inventory:read"
+  | "inventory:update"
+  | "provinces:read"
+  | "settings:read"
+  | "settings:update";
+
+// Role → Permissions mapping
+export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+  SUPER_ADMIN: [
+    "products:read", "products:create", "products:update", "products:delete", "products:archive",
+    "orders:read", "orders:update", "orders:cancel", "orders:refund",
+    "categories:read", "categories:create", "categories:update", "categories:delete",
+    "users:read", "users:update", "users:updateRole", "users:activate",
+    "analytics:read",
+    "expeditions:read", "expeditions:update",
+    "inventory:read", "inventory:update",
+    "provinces:read",
+    "settings:read", "settings:update",
+  ],
+  ADMIN: [
+    "products:read", "products:create", "products:update", "products:archive",
+    "orders:read", "orders:update", "orders:cancel",
+    "categories:read", "categories:create", "categories:update", "categories:delete",
+    "users:read",
+    "analytics:read",
+    "expeditions:read", "expeditions:update",
+    "inventory:read", "inventory:update",
+    "provinces:read",
+    "settings:read",
+  ],
+  CONTENT_MANAGER: [
+    "products:read", "products:create", "products:update",
+    "categories:read", "categories:create", "categories:update",
+    "analytics:read",
+    "inventory:read",
+  ],
+  SALES_REP: [
+    "orders:read", "orders:update",
+    "analytics:read",
+    "inventory:read",
+  ],
+  CUSTOMER: [],
+};
+
+export function hasPermission(role: UserRole | null | undefined, permission: Permission): boolean {
+  if (!role) return false;
+  const perms = ROLE_PERMISSIONS[role];
+  return perms?.includes(permission) ?? false;
+}
+
+export function hasAnyPermission(role: UserRole | null | undefined, permissions: Permission[]): boolean {
+  return permissions.some((p) => hasPermission(role, p));
+}
 
 export interface User {
   id: string;

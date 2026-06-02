@@ -10,6 +10,7 @@ import {
   Modal,
   Input,
 } from "@/components/ui/neu";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import {
   Truck,
   Plus,
@@ -19,6 +20,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import { AdminGuard, RequirePermission } from "@/components/admin/AdminGuard";
 
 type Expedition = {
   id: string;
@@ -67,6 +69,17 @@ export default function AdminExpeditionsPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // WebSocket listener for real-time expedition updates
+  useWebSocket("realtime", (data) => {
+    console.log("[Expeditions] realtime event received:", data);
+
+    // Handle cache:invalidated events for expeditions
+    if (data?.event === "cache:invalidated" && data?.data?.type === "expedition") {
+      console.log("[Expeditions] Expedition cache invalidated, refetching...");
+      fetchData();
+    }
+  }, true);
 
   const resetForm = () => {
     setFormName("");
@@ -170,7 +183,8 @@ export default function AdminExpeditionsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <AdminGuard requirePermissions={["expeditions:read"]}>
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -281,13 +295,15 @@ export default function AdminExpeditionsPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(exp)}
-                          className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-primary active:shadow-inset-deep transition-all"
-                          aria-label="Edit"
-                        >
-                          <Pencil className="size-4" />
-                        </button>
+                        <RequirePermission permission="expeditions:update">
+                          <button
+                            onClick={() => openEdit(exp)}
+                            className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-primary active:shadow-inset-deep transition-all"
+                            aria-label="Edit"
+                          >
+                            <Pencil className="size-4" />
+                          </button>
+                        </RequirePermission>
                         <button
                           onClick={() => {
                             setDeleteId(exp.id);
@@ -453,5 +469,6 @@ export default function AdminExpeditionsPage() {
         </div>
       </Modal>
     </div>
+    </AdminGuard>
   );
 }

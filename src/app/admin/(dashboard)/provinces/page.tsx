@@ -11,6 +11,7 @@ import {
   Input,
 } from "@/components/ui/neu";
 import { MapPin, Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { AdminGuard } from "@/components/admin/AdminGuard";
 
 type Province = {
   id: string;
@@ -118,7 +119,8 @@ export default function AdminProvincesPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <AdminGuard requirePermissions={["provinces:read"]}>
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -275,5 +277,6 @@ export default function AdminProvincesPage() {
         </div>
       </Modal>
     </div>
+    </AdminGuard>
   );
 }

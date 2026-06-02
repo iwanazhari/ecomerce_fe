@@ -1,6 +1,15 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/admin/orders/:id',
+        destination: '/admin/orders',
+        permanent: false,
+      },
+    ]
+  },
   images: {
     // Disable optimization for external images to avoid 400 errors
     // Images will be served directly from source
