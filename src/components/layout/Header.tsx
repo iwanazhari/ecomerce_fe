@@ -41,7 +41,7 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border p-4">
           <Link href={ROUTES.HOME} onClick={onClose} className="flex-shrink-0">
-            <img src="/logo.png" alt="Waterpro" className="h-7 w-auto" />
+            <img src="/images/logo.png" alt="Waterpro" className="h-7 w-auto" />
           </Link>
           <button
             onClick={onClose}
@@ -158,7 +158,7 @@ export function Header() {
 
             {/* Logo */}
             <Link href={ROUTES.HOME} className="flex-shrink-0">
-              <img src="/logo.png" alt="Waterpro" className="h-8 w-auto" />
+              <img src="/images/logo.png" alt="Waterpro" className="h-8 w-auto" />
             </Link>
 
             {/* Desktop nav */}

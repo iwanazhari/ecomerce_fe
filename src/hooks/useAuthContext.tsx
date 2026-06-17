@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       isLoading,
       isAuthenticated: true,
-      isAdmin: role === 'ADMIN',
+      isAdmin: ['ADMIN', 'ADMIN_OPERASIONAL', 'ADMIN_MERCHANDISE'].includes(role),
       isSuperAdmin: role === 'SUPER_ADMIN',
       role,
       can: (permission: Permission) => hasPermission(role, permission),

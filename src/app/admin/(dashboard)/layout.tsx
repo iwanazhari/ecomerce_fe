@@ -6,17 +6,16 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuthContext'
 import { usePermission } from '@/hooks/usePermission'
 import { ROUTES } from '@/constants'
+import { tokenStorage } from '@/services/api/client'
 import {
   LayoutDashboard, Package, ShoppingCart, Tag, Boxes, BarChart3, Truck, MapPin,
-  LogOut, Menu, X, Store, Users,
+  LogOut, Menu, X, Store, Users, ChevronLeft, ChevronRight,
 } from 'lucide-react'
-import { Button } from '@/components/ui/neu/Button'
 
 interface SidebarItem {
   label: string
   href: string
   icon: ReactNode
-  /** Permission required to see this item (optional) */
   permission?: string
 }
 
@@ -26,6 +25,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const { isAdmin, isSuperAdmin, isLoading, user } = useAuth()
   const { can } = usePermission()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => setMounted(true), [])
@@ -48,6 +48,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { label: 'Pengguna', href: ROUTES.ADMIN_USERS, icon: <Users className="size-5" />, permission: 'users:read' },
   ]
 
+  const sidebarWidth = sidebarCollapsed ? 'w-16' : 'w-60'
+
   if (!mounted || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -66,28 +68,43 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-surface shadow-extruded-lg transform transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        {/* Logo */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-border">
-          <Link href={ROUTES.ADMIN} className="flex items-center gap-3">
-            <div className="size-10 rounded-2xl shadow-inset-deep flex items-center justify-center">
-              <Store className="size-5 text-primary" />
+      <aside className={`fixed inset-y-0 left-0 z-50 ${sidebarWidth} bg-surface shadow-extruded-lg flex flex-col transform transition-all duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        {/* Logo + collapse toggle */}
+        <div className="h-20 flex items-center justify-between px-4 border-b border-border shrink-0">
+          {sidebarCollapsed ? (
+            <div className="w-full flex justify-center">
+              <Store className="size-6 text-primary" />
             </div>
-            <div>
-              <span className="text-base font-extrabold text-foreground tracking-tight">Waterpro</span>
-              <p className="text-[10px] text-foreground-muted font-bold uppercase tracking-widest">Admin</p>
-            </div>
-          </Link>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden size-10 rounded-2xl shadow-inset-small flex items-center justify-center">
-            <X className="size-4 text-foreground-muted" />
-          </button>
+          ) : (
+            <>
+              <Link href={ROUTES.ADMIN} className="flex items-center gap-3 min-w-0">
+                <div className="size-10 rounded-2xl shadow-inset-deep flex items-center justify-center shrink-0">
+                  <Store className="size-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-base font-extrabold text-foreground tracking-tight">Waterpro</span>
+                  <p className="text-[10px] text-foreground-muted font-bold uppercase tracking-widest">Admin</p>
+                </div>
+              </Link>
+              <button onClick={() => setSidebarOpen(false)} className="lg:hidden size-8 rounded-xl shadow-inset-small flex items-center justify-center">
+                <X className="size-4 text-foreground-muted" />
+              </button>
+            </>
+          )}
         </div>
 
+        {/* Collapse toggle (desktop) */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="hidden lg:flex items-center justify-center w-full py-2 text-foreground-muted hover:text-foreground transition-colors"
+        >
+          {sidebarCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+        </button>
+
         {/* Nav */}
-        <nav className="p-4 space-y-2">
+        <nav className="p-2 space-y-1 flex-1 overflow-y-auto">
           {sidebarItems
             .filter((item) => {
-              // SUPER_ADMIN sees everything; otherwise check permission
               if (isSuperAdmin) return true
               if (!item.permission) return true
               return can(item.permission as any)
@@ -101,52 +118,79 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   key={item.href}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 ${
+                  className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-extruded'
                       : 'text-foreground-muted hover:text-foreground hover:shadow-inset-small'
-                  }`}
+                  } ${sidebarCollapsed ? 'justify-center px-0' : ''}`}
+                  title={sidebarCollapsed ? item.label : undefined}
                 >
                   {item.icon}
-                  {item.label}
+                  {!sidebarCollapsed && item.label}
                 </Link>
               )
             })}
         </nav>
 
         {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-2xl shadow-inset-deep flex items-center justify-center text-primary font-extrabold text-sm">
-                {user?.email?.charAt(0).toUpperCase() ?? 'A'}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-foreground truncate">{user?.email}</p>
-                <p className="text-[10px] text-foreground-muted font-bold uppercase">{user?.role}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                // logout
-                window.location.href = '/'
-              }}
-              className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-error transition-colors"
-              aria-label="Logout"
-            >
-              <LogOut className="size-4" />
-            </button>
+        <div className={`border-t border-border shrink-0 mt-auto ${sidebarCollapsed ? 'p-2' : 'p-3'}`}>
+          <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+            {sidebarCollapsed ? (
+              <button
+                onClick={() => {
+                  tokenStorage.clearTokens()
+                  document.cookie = 'wp_access_token=; path=/; max-age=0'
+                  window.dispatchEvent(new Event('auth:token-changed'))
+                  router.push('/admin/login')
+                }}
+                className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-error transition-colors"
+                aria-label="Logout"
+              >
+                <LogOut className="size-4" />
+              </button>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="size-10 rounded-2xl shadow-inset-deep flex items-center justify-center text-primary font-extrabold text-sm shrink-0">
+                    {user?.email?.charAt(0).toUpperCase() ?? 'A'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground truncate">{user?.email}</p>
+                    <p className="text-[10px] text-foreground-muted font-bold uppercase">{user?.role}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    tokenStorage.clearTokens()
+                    document.cookie = 'wp_access_token=; path=/; max-age=0'
+                    window.dispatchEvent(new Event('auth:token-changed'))
+                    router.push('/admin/login')
+                  }}
+                  className="size-10 rounded-2xl shadow-inset-small flex items-center justify-center text-foreground-muted hover:text-error transition-colors shrink-0"
+                  aria-label="Logout"
+                >
+                  <LogOut className="size-4" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-60'}`}>
         {/* Header */}
         <header className="h-20 bg-surface shadow-extruded flex items-center justify-between px-4 lg:px-8">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden size-12 rounded-2xl shadow-inset-small flex items-center justify-center">
-            <Menu className="size-5 text-foreground-muted" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden size-12 rounded-2xl shadow-inset-small flex items-center justify-center">
+              <Menu className="size-5 text-foreground-muted" />
+            </button>
+            {sidebarCollapsed && (
+              <button onClick={() => setSidebarCollapsed(false)} className="hidden lg:flex size-10 rounded-2xl shadow-inset-small items-center justify-center text-foreground-muted hover:text-foreground">
+                <ChevronRight className="size-4" />
+              </button>
+            )}
+          </div>
           <h1 className="text-lg font-extrabold tracking-tight text-foreground">
             {sidebarItems.find((i) =>
               i.href === ROUTES.ADMIN
@@ -156,10 +200,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </h1>
           <div className="flex items-center gap-3">
             <Link href={ROUTES.HOME}>
-              <Button variant="secondary" size="sm">
-                <Store className="size-4" />
+              <button className="px-4 py-2 rounded-2xl shadow-inset-small text-sm font-bold text-foreground-muted hover:text-foreground transition-colors">
+                <Store className="size-4 inline mr-1.5" />
                 Toko
-              </Button>
+              </button>
             </Link>
           </div>
         </header>
