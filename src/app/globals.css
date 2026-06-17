@@ -306,6 +306,57 @@ body {
   border-color: transparent !important;
 }
 
+/* ============================================================
+   Bottom Navigation — Mobile
+   ============================================================ */
+
+/* Safe area for notched phones */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Explicit responsive breakpoints */
+@media (max-width: 1023px) {
+  .mobile-show { display: block; }
+  .desktop-show { display: none !important; }
+  .main-pb { padding-bottom: 4rem; }
+}
+@media (min-width: 1024px) {
+  .mobile-show { display: none !important; }
+  .desktop-show { display: block; }
+  .main-pb { padding-bottom: 0; }
+}
+
+/* Scrollbar hide for category nav */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================
+   Marketplace Product Card
+   ============================================================ */
+
+.marketplace-card {
+  transition: all 200ms ease;
+}
+.marketplace-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* ============================================================
+   Pill Slide Animation for Bottom Nav
+   ============================================================ */
+
+.pill-slide {
+  transition: left 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 200ms ease;
+}
+
 /* Table cells — use inset small for header, extruded for rows */
 .table th {
   box-shadow: var(--shadow-inset-small);

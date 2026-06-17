@@ -1,5 +1,6 @@
 import { getProductBySlug } from '@/lib/api'
 import { ProductDetailContent } from '@/components/product/ProductDetailContent'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 import type { Product } from '@/types'
 import type { Metadata } from 'next'
 
@@ -42,5 +43,10 @@ export default async function ProductDetailPage({ params }: PageProps) {
     // Client component will handle error state
   }
 
-  return <ProductDetailContent slug={slug} initialProduct={initialProduct} />
+  return (
+    <>
+      <CmsPageRenderer page="product-detail" />
+      <ProductDetailContent slug={slug} initialProduct={initialProduct} />
+    </>
+  )
 }

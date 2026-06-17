@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ROUTES } from '@/constants'
 import { Button } from '@/components/ui/Button'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 
 const features = [
   {
@@ -96,7 +97,9 @@ const benefits = [
 
 export default function FeaturesPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <CmsPageRenderer page="features" />
+      <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-background">
         {/* Gradient blobs */}
@@ -278,5 +281,6 @@ export default function FeaturesPage() {
         </div>
       </section>
     </div>
+    </>
   )
 }

@@ -5,14 +5,17 @@ import { useUIStore } from '@/store'
 import { getSocket } from '@/services/websocket/socket'
 import { SOCKET_EVENTS } from '@/constants'
 import { Header, Footer } from '@/components/layout'
+import { CategoryNavBar } from '@/components/layout/CategoryNavBar'
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { CartDrawer } from '@/components/cart'
 import SearchModal from '@/components/search/SearchModal'
 import { Toast } from '@/components/ui'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const showToast = useUIStore((s) => s.showToast)
+  const isMobile = useIsMobile()
 
-  // WebSocket realtime notifications
   useEffect(() => {
     const socket = getSocket()
     if (!socket.connected) return
@@ -29,8 +32,12 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">{children}</main>
-      <Footer />
+      {!isMobile && <CategoryNavBar />}
+      <main className="flex-1" style={{ paddingBottom: isMobile ? '4rem' : '0' }}>
+        {children}
+      </main>
+      {!isMobile && <Footer />}
+      {isMobile && <MobileBottomNav />}
       <CartDrawer />
       <SearchModal />
       <Toast />

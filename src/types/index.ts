@@ -58,9 +58,30 @@ export type Permission =
   | "inventory:update"
   | "provinces:read"
   | "settings:read"
-  | "settings:update";
+  | "settings:update"
+  | "cms:read"
+  | "cms:write";
 
 // Role → Permissions mapping
+// ============================================================
+// CMS Section
+// ============================================================
+
+export interface CmsSection {
+  id: string
+  page: string
+  sectionType: string
+  title?: string | null
+  subtitle?: string | null
+  content?: Record<string, unknown> | null
+  settings?: Record<string, unknown> | null
+  device: string
+  isActive: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   SUPER_ADMIN: [
     "products:read", "products:create", "products:update", "products:delete", "products:archive",
@@ -72,6 +93,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "inventory:read", "inventory:update",
     "provinces:read",
     "settings:read", "settings:update",
+    "cms:read", "cms:write",
   ],
   ADMIN: [
     "products:read", "products:create", "products:update", "products:archive",

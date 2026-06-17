@@ -9,7 +9,7 @@ import { ROUTES } from '@/constants'
 import { tokenStorage } from '@/services/api/client'
 import {
   LayoutDashboard, Package, ShoppingCart, Tag, Boxes, BarChart3, Truck, MapPin,
-  LogOut, Menu, X, Store, Users, ChevronLeft, ChevronRight,
+  LogOut, Menu, X, Store, Users, ChevronLeft, ChevronRight, Layout,
 } from 'lucide-react'
 
 interface SidebarItem {
@@ -45,6 +45,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { label: 'Ekspedisi', href: ROUTES.ADMIN_EXPEDITIONS, icon: <Truck className="size-5" />, permission: 'expeditions:read' },
     { label: 'Provinsi', href: ROUTES.ADMIN_PROVINCES, icon: <MapPin className="size-5" />, permission: 'provinces:read' },
     { label: 'Analitik', href: ROUTES.ADMIN_ANALYTICS, icon: <BarChart3 className="size-5" />, permission: 'analytics:read' },
+    { label: 'CMS', href: ROUTES.ADMIN_CMS, icon: <Layout className="size-5" />, permission: 'cms:read' },
     { label: 'Pengguna', href: ROUTES.ADMIN_USERS, icon: <Users className="size-5" />, permission: 'users:read' },
   ]
 

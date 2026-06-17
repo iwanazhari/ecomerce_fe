@@ -23,6 +23,7 @@ import {
 } from "@/components/ui";
 import { MidtransSnap } from "@/components/checkout";
 import { listExpeditions } from "@/lib/api/shipping";
+import { CmsPageRenderer } from "@/components/CmsPageRenderer";
 import {
   Check,
   ChevronRight,
@@ -344,7 +345,9 @@ export default function CheckoutPage() {
     selectedShipping;
 
   return (
-    <form onSubmit={handleSubmit}>
+    <>
+      <CmsPageRenderer page="checkout" />
+      <form onSubmit={handleSubmit}>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         <div className="mb-6 flex items-center gap-4">
           <Link
@@ -673,5 +676,6 @@ export default function CheckoutPage() {
         />
       )}
     </form>
+    </>
   );
 }

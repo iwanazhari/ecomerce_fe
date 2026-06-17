@@ -7,6 +7,7 @@ import { useLogin } from '@/hooks'
 import { ROUTES } from '@/constants'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 import { loginSchema } from '@/validators'
 import { Droplets } from 'lucide-react'
 
@@ -37,7 +38,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="rounded-xl border border-border/60 bg-surface p-8 shadow-soft">
+    <>
+      <CmsPageRenderer page="login" />
+      <div className="rounded-xl border border-border/60 bg-surface p-8 shadow-soft">
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600">
           <Droplets className="size-6 text-white" />
@@ -86,5 +89,6 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+    </>
   )
 }

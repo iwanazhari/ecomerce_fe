@@ -5,6 +5,8 @@ import { useUIStore } from '@/store'
 import { getSocket } from '@/services/websocket/socket'
 import { SOCKET_EVENTS } from '@/constants'
 import { Header, Footer } from '@/components/layout'
+import { CategoryNavBar } from '@/components/layout/CategoryNavBar'
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { CartDrawer } from '@/components/cart'
 import SearchModal from '@/components/search/SearchModal'
 import { Toast } from '@/components/ui'
@@ -12,7 +14,6 @@ import { Toast } from '@/components/ui'
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const showToast = useUIStore((s) => s.showToast)
 
-  // WebSocket realtime notifications
   useEffect(() => {
     const socket = getSocket()
     if (!socket.connected) return
@@ -29,10 +30,12 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
+      <CategoryNavBar />
+      <main className="flex-1 pb-16 lg:pb-0">
         {children}
       </main>
       <Footer />
+      <MobileBottomNav />
       <CartDrawer />
       <SearchModal />
       <Toast />

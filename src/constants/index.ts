@@ -219,5 +219,6 @@ export const ROUTES = {
   ADMIN_EXPEDITIONS: '/admin/expeditions',
   ADMIN_PROVINCES: '/admin/provinces',
   ADMIN_USERS: '/admin/users',
+  ADMIN_CMS: '/admin/cms',
   ADMIN_LOGIN: '/admin/login',
 } as const

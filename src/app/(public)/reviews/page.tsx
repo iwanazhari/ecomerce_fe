@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ROUTES } from '@/constants'
 import { Button } from '@/components/ui/Button'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 
 const reviews = [
   {
@@ -125,7 +126,9 @@ export default function ReviewsPage() {
   const averageRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <CmsPageRenderer page="reviews" />
+      <div className="min-h-screen bg-background">
       {/* Hero */}
       <section className="relative overflow-hidden bg-background">
         <div className="bg-blob -right-32 -top-32 h-96 w-96 bg-indigo-600/10" />
@@ -296,5 +299,6 @@ export default function ReviewsPage() {
         </div>
       </section>
     </div>
+    </>
   )
 }

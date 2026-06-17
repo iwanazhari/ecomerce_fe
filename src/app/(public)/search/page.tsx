@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { CardSkeleton, ListSkeleton } from '@/components/ui/Skeleton'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 
 function SearchContent() {
   const searchParams = useSearchParams()
@@ -24,6 +25,15 @@ function SearchContent() {
   )
 }
 
+function SearchPageContent() {
+  return (
+    <>
+      <CmsPageRenderer page="search" />
+      <SearchContent />
+    </>
+  )
+}
+
 export default function SearchPage() {
   return (
     <Suspense fallback={
@@ -34,7 +44,7 @@ export default function SearchPage() {
         </div>
       </div>
     }>
-      <SearchContent />
+      <SearchPageContent />
     </Suspense>
   )
 }

@@ -1,0 +1,6 @@
+export { HeroEditor } from './HeroEditor'
+export { TrustBadgesEditor } from './TrustBadgesEditor'
+export { CategoriesEditor } from './CategoriesEditor'
+export { ProductsEditor } from './ProductsEditor'
+export { CertificationEditor } from './CertificationEditor'
+export { CustomEditor } from './CustomEditor'

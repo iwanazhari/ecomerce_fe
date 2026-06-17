@@ -2,11 +2,14 @@
 
 import Link from 'next/link'
 import { ROUTES } from '@/constants'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 import { Droplets } from 'lucide-react'
 
 export default function ForgotPasswordPage() {
   return (
-    <div className="rounded-xl border border-border/60 bg-surface p-8 shadow-soft">
+    <>
+      <CmsPageRenderer page="forgot-password" />
+      <div className="rounded-xl border border-border/60 bg-surface p-8 shadow-soft">
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600">
           <Droplets className="size-6 text-white" />
@@ -24,5 +27,6 @@ export default function ForgotPasswordPage() {
         </Link>
       </div>
     </div>
+    </>
   )
 }

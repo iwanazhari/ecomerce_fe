@@ -15,26 +15,30 @@ export function getSocket(): Socket {
   console.log('[Socket] Initializing connection to:', config.wsUrl, 'Token exists:', !!token)
 
   socket = io(config.wsUrl, {
-    autoConnect: true, // Auto-connect on getSocket() call
-    path: '/socket.io', // Socket.IO default path, proxied via Nginx
-    transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
-    auth: token ? { token } : {}, // Pass token directly in auth option
+    autoConnect: true,
+    path: '/socket.io',
+    transports: ['websocket'],
+    auth: token ? { token } : {},
     reconnection: true,
     reconnectionDelay: 1000,
-    reconnectionAttempts: 10,
+    reconnectionAttempts: 5,
     timeout: 20000,
   })
 
   socket.on('connect', () => {
-    console.log('[Socket] Connected:', socket?.id)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Socket] Connected:', socket?.id)
+    }
   })
 
-  socket.on('connect_error', (err) => {
-    console.error('[Socket] Connection error:', err.message, err.stack)
+  socket.on('connect_error', () => {
+    // Silently ignore — Socket.IO will retry
   })
 
   socket.on('disconnect', (reason) => {
-    console.log('[Socket] Disconnected:', reason)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Socket] Disconnected:', reason)
+    }
   })
 
   return socket

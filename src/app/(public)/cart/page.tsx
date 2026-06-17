@@ -7,14 +7,14 @@ import { ROUTES } from '@/constants'
 import { formatCurrency, getImageUrl } from '@/utils'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 import { ShoppingBag, Plus, Minus, Trash2, ArrowLeft } from 'lucide-react'
 
-export default function CartPage() {
+function CartContent() {
   const { data: cart, isLoading } = useCart()
   const removeItem = useRemoveCartItem()
   const updateItem = useUpdateCartItem()
 
-  // Guard against stale cached cart items without product data
   const validItems = cart?.items?.filter((item) => item?.product) ?? []
 
   if (isLoading) {
@@ -155,5 +155,14 @@ export default function CartPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CartPage() {
+  return (
+    <>
+      <CmsPageRenderer page="cart" />
+      <CartContent />
+    </>
   )
 }

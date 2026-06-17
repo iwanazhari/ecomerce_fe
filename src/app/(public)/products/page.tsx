@@ -1,5 +1,6 @@
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { listProducts, listCategories } from '@/lib/api'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 
 // Dynamic SSR — searchParams membutuhkan request-time rendering
 export const dynamic = 'force-dynamic'
@@ -39,7 +40,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const totalPages = Math.max(1, Math.ceil(totalProducts / limit))
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28">
+    <>
+      <CmsPageRenderer page="products" />
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight text-foreground">
         Semua <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Produk</span>
       </h1>
@@ -57,5 +60,6 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         initialSort={sort as any}
       />
     </div>
+    </>
   )
 }

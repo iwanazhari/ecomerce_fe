@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useAuth } from '@/hooks'
 import { ROUTES } from '@/constants'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 import { Package, MapPin, Heart, Star, Bell, Settings } from 'lucide-react'
 
 const sections = [
@@ -18,7 +19,9 @@ export default function AccountPage() {
   const { user } = useAuth()
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <>
+      <CmsPageRenderer page="account" />
+      <div className="mx-auto max-w-7xl">
       <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Akun Saya</h1>
       <p className="mt-1 text-base text-foreground-muted">Halo, {user?.firstName || user?.email}</p>
 
@@ -45,5 +48,6 @@ export default function AccountPage() {
         })}
       </div>
     </div>
+    </>
   )
 }

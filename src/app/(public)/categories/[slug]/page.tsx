@@ -4,13 +4,16 @@ import { useParams } from 'next/navigation'
 import { useCategory } from '@/hooks'
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { CmsPageRenderer } from '@/components/CmsPageRenderer'
 
 export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>()
   const { data: category, isLoading } = useCategory(slug!)
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+    <>
+      <CmsPageRenderer page="categories" />
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       {isLoading ? (
         <Skeleton className="h-8 w-48" />
       ) : category ? (
@@ -25,5 +28,6 @@ export default function CategoryPage() {
         <ProductGrid />
       </div>
     </div>
+    </>
   )
 }
