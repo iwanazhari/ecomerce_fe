@@ -51,7 +51,6 @@ function LoginForm() {
 
       // Redirect to admin dashboard
       router.push(redirect)
-      router.refresh()
     } catch (err: any) {
       setError(err.message ?? 'Terjadi kesalahan')
     } finally {

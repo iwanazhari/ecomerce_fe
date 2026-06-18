@@ -1,16 +1,18 @@
 import { cn } from '@/lib/utils'
 
-export function Card({
-  className,
-  children,
-}: {
+export interface CardProps {
   className?: string
   children: React.ReactNode
-}) {
+  featured?: boolean
+}
+
+export function Card({ className, children, featured }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-border/60 bg-surface shadow-soft card-hover',
+        'rounded-xl border bg-card shadow-sm',
+        featured ? 'shadow-accent border-primary/20' : 'border-border',
+        'card-hover',
         className,
       )}
     >

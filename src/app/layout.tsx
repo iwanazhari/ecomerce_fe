@@ -1,25 +1,26 @@
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans, DM_Sans, Geist_Mono } from 'next/font/google'
+import { Inter, Calistoga, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/providers'
 import { cn } from "@/lib/utils"
 import { TooltipProvider } from '@/components/ui'
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-plus-jakarta-sans',
+  variable: '--font-inter',
   display: 'swap',
 })
 
-const dmSans = DM_Sans({
+const calistoga = Calistoga({
   subsets: ['latin'],
-  variable: '--font-dm-sans',
+  weight: '400',
+  variable: '--font-calistoga',
   display: 'swap',
 })
 
-const geistMono = Geist_Mono({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
-  variable: '--font-geist-mono',
+  variable: '--font-jetbrains-mono',
   display: 'swap',
 })
 
@@ -50,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="id" className={cn("font-sans", plusJakartaSans.variable, dmSans.variable, geistMono.variable)} suppressHydrationWarning>
+    <html lang="id" className={cn("font-sans", inter.variable, calistoga.variable, jetbrainsMono.variable)} suppressHydrationWarning>
       <head>
         <script src="https://accounts.google.com/gsi/client" async defer />
         {/* Preconnect to external origins for faster resource loading */}

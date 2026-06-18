@@ -1,24 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { fetchSections } from '@/hooks/useCms'
+import { useCmsSections } from '@/hooks/useCms'
 import { DynamicSection } from '@/components/home/DynamicSection'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import type { CmsSection } from '@/types'
 
 export function CmsPageRenderer({ page }: { page: string }) {
-  const [sections, setSections] = useState<CmsSection[] | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: sections, isLoading } = useCmsSections(page)
   const isMobile = useIsMobile()
 
-  useEffect(() => {
-    fetchSections(page)
-      .then(setSections)
-      .catch(() => setSections([]))
-      .finally(() => setLoading(false))
-  }, [page])
-
-  if (loading) return null
+  if (isLoading) return null
 
   const filtered = (sections ?? []).filter((s) => {
     if (!s.isActive) return false

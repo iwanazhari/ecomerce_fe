@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 
 const variantStyles: Record<string, string> = {
-  default: 'bg-surface-hover text-foreground-muted',
+  default: 'bg-muted text-foreground-muted',
   primary: 'bg-primary-light text-primary ring-1 ring-primary/10',
   success: 'bg-success-light text-success ring-1 ring-success/10',
   warning: 'bg-warning-light text-warning ring-1 ring-warning/10',
@@ -36,5 +36,20 @@ export function Badge({
     >
       {children}
     </span>
+  )
+}
+
+export function SectionLabel({
+  className,
+  children,
+}: {
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className={cn('section-label', className)}>
+      <span className="section-label-dot" />
+      <span className="section-label-text">{children}</span>
+    </div>
   )
 }

@@ -1,24 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { fetchSections } from '@/hooks/useCms'
+import { useCmsSections } from '@/hooks/useCms'
 import { DynamicSection } from '@/components/home/DynamicSection'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import type { CmsSection } from '@/types'
 
 export function HomePage() {
-  const [sections, setSections] = useState<CmsSection[] | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: sections, isLoading } = useCmsSections('home')
   const isMobile = useIsMobile()
 
-  useEffect(() => {
-    fetchSections('home')
-      .then(setSections)
-      .catch(() => setSections([]))
-      .finally(() => setLoading(false))
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-4 p-4 animate-pulse">
         <div className="h-48 sm:h-72 rounded-xl bg-surface-hover" />

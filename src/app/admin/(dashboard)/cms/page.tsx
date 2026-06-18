@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
 import { seedDefaultSections } from '@/hooks/useCms'
 import type { CmsSection } from '@/types'
 import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight, Layout, Database, Loader2, GripVertical } from 'lucide-react'
 import { HeroEditor } from './editors/HeroEditor'
-import { TrustBadgesEditor } from './editors/TrustBadgesEditor'
 import { CategoriesEditor } from './editors/CategoriesEditor'
 import { ProductsEditor } from './editors/ProductsEditor'
+import { BrandsEditor } from './editors/BrandsEditor'
 import { CertificationEditor } from './editors/CertificationEditor'
 import { CustomEditor } from './editors/CustomEditor'
 
@@ -31,23 +32,24 @@ const PAGES = [
 
 const SECTION_TYPES = [
   { value: 'hero', label: 'Hero Banner' },
-  { value: 'trust_badges', label: 'Trust Badges' },
   { value: 'categories', label: 'Kategori Produk' },
   { value: 'products', label: 'Produk Rekomendasi' },
+  { value: 'brands', label: 'Brand Partner' },
   { value: 'certification', label: 'Sertifikasi' },
   { value: 'custom', label: 'Custom HTML' },
 ]
 
 const SECTION_EDITORS: Record<string, React.FC<{ section: CmsSection; onChange: (content: Record<string, unknown>) => void }>> = {
   hero: HeroEditor,
-  trust_badges: TrustBadgesEditor,
   categories: CategoriesEditor,
   products: ProductsEditor,
+  brands: BrandsEditor,
   certification: CertificationEditor,
   custom: CustomEditor,
 }
 
 export default function CmsPage() {
+  const queryClient = useQueryClient()
   const [sections, setSections] = useState<CmsSection[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState('home')
@@ -69,12 +71,14 @@ export default function CmsPage() {
 
   const toggleActive = async (section: CmsSection) => {
     await api.put(`/admin/cms/${section.id}`, { isActive: !section.isActive })
+    queryClient.invalidateQueries({ queryKey: ['cms', 'sections'] })
     load()
   }
 
   const remove = async (id: string) => {
     setExpandedId((prev) => (prev === id ? null : prev))
     await api.delete(`/admin/cms/${id}`)
+    queryClient.invalidateQueries({ queryKey: ['cms', 'sections'] })
     load()
   }
 
@@ -83,6 +87,7 @@ export default function CmsPage() {
     setSeeding(true)
     const results = await seedDefaultSections()
     setSeeding(false)
+    queryClient.invalidateQueries({ queryKey: ['cms', 'sections'] })
     load()
     alert(`Default section berhasil dibuat:\n${results.filter(r => r.count > 0).map(r => `• ${r.page}: ${r.count} section`).join('\n')}`)
   }
@@ -164,6 +169,7 @@ export default function CmsPage() {
     }
     await api.put(`/admin/cms/${section.id}`, payload)
     setExpandedId(null)
+    queryClient.invalidateQueries({ queryKey: ['cms', 'sections'] })
     load()
   }
 

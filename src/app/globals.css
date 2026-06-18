@@ -5,106 +5,117 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================
-   Neumorphism (Soft UI) Design Tokens
-   Monochromatic "Cool Grey" — shadows do all visual work
+   Minimalist Modern Design Tokens
+   Brand: Indigo (#4F46E5) — bridging blue & violet
+   Waterpro — clean, professional, water treatment
    ============================================================ */
 
 :root {
-  /* Base Cool Grey — everything molded from this */
-  --background: #E0E5EC;
-  --surface: #E0E5EC;
-  --surface-hover: #E0E5EC;
+  /* Base — warm off-white canvas for clean, airy feel */
+  --background: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-hover: #F8FAFC;
 
-  /* Text — dark blue-grey for primary, cooler grey for muted */
-  --foreground: #3D4852;
-  --foreground-muted: #6B7280;
-  --foreground-subtle: #8B95A5;
+  /* Text — deep slate for maximum readability, never pure black */
+  --foreground: #1E293B;
+  --foreground-muted: #64748B;
+  --foreground-subtle: #94A3B8;
 
-  /* Accent — soft violet (used sparingly) */
-  --primary: #6C63FF;
-  --primary-hover: #8B84FF;
-  --primary-light: rgba(108, 99, 255, 0.12);
+  /* Brand — Indigo bridging blue & violet */
+  --primary: #4F46E5;
+  --primary-hover: #6366F1;
+  --primary-light: rgba(79, 70, 229, 0.10);
   --primary-foreground: #FFFFFF;
-  --primary-glow: rgba(108, 99, 255, 0.2);
+  --primary-glow: rgba(79, 70, 229, 0.18);
 
-  /* Secondary — teal for success */
-  --secondary: #38B2AC;
-  --secondary-hover: #319795;
-  --secondary-light: rgba(56, 178, 172, 0.12);
+  /* Secondary — sky blue for water/clean associations */
+  --secondary: #0EA5E9;
+  --secondary-hover: #38BDF8;
+  --secondary-light: rgba(14, 165, 233, 0.10);
   --secondary-foreground: #FFFFFF;
 
-  /* Accent */
-  --accent: #6C63FF;
-  --accent-light: rgba(108, 99, 255, 0.12);
-  --accent-foreground: #3D4852;
+  /* Accent — same as primary (indigo) */
+  --accent: #4F46E5;
+  --accent-light: rgba(79, 70, 229, 0.10);
+  --accent-foreground: #1E293B;
 
   /* Semantic */
-  --success: #38B2AC;
-  --success-light: rgba(56, 178, 172, 0.12);
+  --success: #10B981;
+  --success-light: rgba(16, 185, 129, 0.10);
   --warning: #F59E0B;
-  --warning-light: rgba(245, 158, 11, 0.12);
+  --warning-light: rgba(245, 158, 11, 0.10);
   --error: #EF4444;
-  --error-light: rgba(239, 68, 68, 0.12);
+  --error-light: rgba(239, 68, 68, 0.10);
 
-  /* Neumorphism: borders are transparent, shadows define edges */
-  --border: transparent;
-  --border-focus: #6C63FF;
+  /* Borders — visible, subtle */
+  --border: #E2E8F0;
+  --border-focus: #4F46E5;
 
-  /* Radius — soft, hyper-rounded */
-  --radius-sm: 0.75rem;
-  --radius-md: 1rem;
-  --radius-lg: 1.5rem;
-  --radius-xl: 2rem;
-  --radius-2xl: 2rem;
-  --radius-3xl: 2rem;
+  /* Radius — refined, not hyper-rounded */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
 
-  /* Neumorphism Shadows — dual opposing RGB shadows */
-  /* Extruded (standard raised state) */
-  --shadow-sm: 5px 5px 10px rgb(163, 177, 198, 0.6), -5px -5px 10px rgba(255, 255, 255, 0.5);
-  --shadow-md: 9px 9px 16px rgb(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.5);
-  --shadow-lg: 12px 12px 20px rgb(163, 177, 198, 0.7), -12px -12px 20px rgba(255, 255, 255, 0.6);
-  --shadow-xl: 16px 16px 32px rgb(163, 177, 198, 0.8), -16px -16px 32px rgba(255, 255, 255, 0.6);
+  /* Shadows — layered, realistic depth (no neumorphism) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
 
-  /* Inset (pressed/well states) */
-  --shadow-inset: inset 6px 6px 10px rgb(163, 177, 198, 0.6), inset -6px -6px 10px rgba(255, 255, 255, 0.5);
-  --shadow-inset-deep: inset 10px 10px 20px rgb(163, 177, 198, 0.7), inset -10px -10px 20px rgba(255, 255, 255, 0.6);
-  --shadow-inset-small: inset 3px 3px 6px rgb(163, 177, 198, 0.6), inset -3px -3px 6px rgba(255, 255, 255, 0.5);
+  /* Accent-tinted shadows for featured elements */
+  --shadow-accent: 0 4px 14px rgba(79, 70, 229, 0.15);
+  --shadow-accent-lg: 0 8px 24px rgba(79, 70, 229, 0.20);
 
-  /* Hover states */
-  --shadow-hover: 12px 12px 20px rgb(163, 177, 198, 0.7), -12px -12px 20px rgba(255, 255, 255, 0.6);
-  --shadow-glow: 0 0 20px rgba(108, 99, 255, 0.3);
-  --shadow-soft: 9px 9px 16px rgb(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.5);
-  --shadow-button: 9px 9px 16px rgb(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.5);
-  --shadow-badge-glow: 0 0 12px rgba(108, 99, 255, 0.3);
+  /* Hover state */
+  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.06);
+
+  /* Legacy neumorphism compat — map to modern shadows */
+  --shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-inset-deep: inset 0 4px 8px rgba(0, 0, 0, 0.06);
+  --shadow-inset-small: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.12);
+  --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+  --shadow-button: 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-badge-glow: 0 0 12px rgba(79, 70, 229, 0.15);
 
   /* Transitions */
-  --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 
   /* shadcn semantic mappings */
-  --card: #E0E5EC;
-  --card-foreground: #3D4852;
-  --popover: #E0E5EC;
-  --popover-foreground: #3D4852;
-  --muted: #E0E5EC;
-  --muted-foreground: #6B7280;
+  --card: #FFFFFF;
+  --card-foreground: #1E293B;
+  --popover: #FFFFFF;
+  --popover-foreground: #1E293B;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --input: #E0E5EC;
-  --ring: #6C63FF;
-  --chart-1: #6C63FF;
-  --chart-2: #38B2AC;
+  --input: #FFFFFF;
+  --ring: #4F46E5;
+  --chart-1: #4F46E5;
+  --chart-2: #0EA5E9;
   --chart-3: #F59E0B;
   --chart-4: #EF4444;
-  --chart-5: #8B84FF;
-  --radius: 1rem;
-  --sidebar: #E0E5EC;
-  --sidebar-foreground: #3D4852;
-  --sidebar-primary: #6C63FF;
+  --chart-5: #10B981;
+  --radius: 0.75rem;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1E293B;
+  --sidebar-primary: #4F46E5;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #E0E5EC;
-  --sidebar-accent-foreground: #6C63FF;
-  --sidebar-border: transparent;
-  --sidebar-ring: #6C63FF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #4F46E5;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #4F46E5;
+}
+
+/* Signature Gradient: Indigo-600 → Indigo-400 */
+:root {
+  --gradient-primary: linear-gradient(135deg, #4F46E5, #818CF8);
+  --gradient-subtle: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(129, 140, 248, 0.05));
+  --gradient-text: linear-gradient(135deg, #4F46E5, #818CF8);
 }
 
 @theme inline {
@@ -152,9 +163,11 @@
   --shadow-hover: var(--shadow-hover);
   --shadow-button: var(--shadow-button);
   --shadow-badge-glow: var(--shadow-badge-glow);
-  --font-sans: var(--font-plus-jakarta-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-plus-jakarta-sans);
+  --shadow-accent: var(--shadow-accent);
+  --shadow-accent-lg: var(--shadow-accent-lg);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-heading: var(--font-calistoga);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -178,7 +191,6 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-4xl: calc(var(--radius) * 2.5);
 }
 
 /* ============================================================
@@ -186,12 +198,13 @@
    ============================================================ */
 
 * {
-  border-color: transparent;
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -217,18 +230,18 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgb(163, 177, 198, 0.4);
+  background: rgb(148, 163, 184, 0.3);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(163, 177, 198, 0.6);
+  background: rgb(148, 163, 184, 0.5);
 }
 
 /* ============================================================
-   Neumorphism Utility Classes
+   Utility Classes
    ============================================================ */
 
-/* Extruded shadows */
+/* Shadow utilities */
 .shadow-extruded-sm {
   box-shadow: var(--shadow-sm);
 }
@@ -286,36 +299,79 @@ body {
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  background: var(--gradient-text);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* Icon well — deep inset */
+/* Gradient background */
+.gradient-bg {
+  background: var(--gradient-primary);
+}
+
+/* Gradient subtle overlay */
+.gradient-subtle {
+  background: var(--gradient-subtle);
+}
+
+/* Section label badge — design system pattern */
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(79, 70, 229, 0.2);
+  background: rgba(79, 70, 229, 0.06);
+  padding: 0.375rem 1rem;
+}
+.section-label-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--primary);
+}
+.section-label-text {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--primary);
+}
+
+/* Icon well — subtle fill for icons */
 .icon-well {
-  box-shadow: var(--shadow-inset-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xl);
+  background: var(--gradient-primary);
+  color: white;
+}
+
+/* Dot pattern texture for inverted sections */
+.dot-pattern {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
 /* ============================================================
-   Component Overrides for Neumorphism
+   Component Overrides
    ============================================================ */
 
-/* Remove default borders from shadcn components */
+/* Ensure border utility works with our visible borders */
 .border-border, [class*="border-border/"] {
-  border-color: transparent !important;
+  border-color: var(--border);
 }
 
 /* ============================================================
    Bottom Navigation — Mobile
    ============================================================ */
 
-/* Safe area for notched phones */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Explicit responsive breakpoints */
 @media (max-width: 1023px) {
   .mobile-show { display: block; }
   .desktop-show { display: none !important; }
@@ -327,7 +383,6 @@ body {
   .main-pb { padding-bottom: 0; }
 }
 
-/* Scrollbar hide for category nav */
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -336,10 +391,7 @@ body {
   display: none;
 }
 
-/* ============================================================
-   Marketplace Product Card
-   ============================================================ */
-
+/* Marketplace Product Card */
 .marketplace-card {
   transition: all 200ms ease;
 }
@@ -348,78 +400,57 @@ body {
   box-shadow: var(--shadow-hover);
 }
 
-/* ============================================================
-   Pill Slide Animation for Bottom Nav
-   ============================================================ */
-
+/* Pill Slide Animation for Bottom Nav */
 .pill-slide {
   transition: left 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
               opacity 200ms ease;
 }
 
-/* Table cells — use inset small for header, extruded for rows */
-.table th {
-  box-shadow: var(--shadow-inset-small);
-}
-
 /* ============================================================
-   Dark Mode — Neumorphism works best in light mode
-   Provide a functional dark variant
+   Dark Mode
    ============================================================ */
 
 .dark {
-  --background: #1A1D23;
-  --surface: #1A1D23;
-  --surface-hover: #1A1D23;
-  --foreground: #E2E8F0;
+  --background: #0F172A;
+  --surface: #1E293B;
+  --surface-hover: #1E293B;
+  --foreground: #F1F5F9;
   --foreground-muted: #94A3B8;
   --foreground-subtle: #64748B;
-  --primary: #8B84FF;
-  --primary-hover: #A5A0FF;
-  --primary-light: rgba(139, 132, 255, 0.15);
-  --primary-glow: rgba(139, 132, 255, 0.25);
-  --secondary: #34D399;
-  --secondary-hover: #6EE7B7;
-  --secondary-light: rgba(52, 211, 153, 0.15);
-  --accent: #8B84FF;
-  --accent-light: rgba(139, 132, 255, 0.15);
-  --border: transparent;
-  --border-focus: #8B84FF;
-  --shadow-sm: 5px 5px 10px rgba(0, 0, 0, 0.4), -5px -5px 10px rgba(255, 255, 255, 0.03);
-  --shadow-md: 9px 9px 16px rgba(0, 0, 0, 0.5), -9px -9px 16px rgba(255, 255, 255, 0.03);
-  --shadow-lg: 12px 12px 20px rgba(0, 0, 0, 0.6), -12px -12px 20px rgba(255, 255, 255, 0.04);
-  --shadow-xl: 16px 16px 32px rgba(0, 0, 0, 0.7), -16px -16px 32px rgba(255, 255, 255, 0.04);
-  --shadow-inset: inset 6px 6px 10px rgba(0, 0, 0, 0.5), inset -6px -6px 10px rgba(255, 255, 255, 0.03);
-  --shadow-inset-deep: inset 10px 10px 20px rgba(0, 0, 0, 0.6), inset -10px -10px 20px rgba(255, 255, 255, 0.04);
-  --shadow-inset-small: inset 3px 3px 6px rgba(0, 0, 0, 0.4), inset -3px -3px 6px rgba(255, 255, 255, 0.03);
-  --shadow-hover: 12px 12px 20px rgba(0, 0, 0, 0.6), -12px -12px 20px rgba(255, 255, 255, 0.04);
-  --shadow-glow: 0 0 20px rgba(139, 132, 255, 0.4);
-  --shadow-soft: 9px 9px 16px rgba(0, 0, 0, 0.5), -9px -9px 16px rgba(255, 255, 255, 0.03);
-  --shadow-button: 9px 9px 16px rgba(0, 0, 0, 0.5), -9px -9px 16px rgba(255, 255, 255, 0.03);
-  --shadow-badge-glow: 0 0 12px rgba(139, 132, 255, 0.4);
-  --card: #1A1D23;
-  --card-foreground: #E2E8F0;
-  --popover: #1A1D23;
-  --popover-foreground: #E2E8F0;
-  --muted: #1A1D23;
+  --primary: #818CF8;
+  --primary-hover: #6366F1;
+  --primary-light: rgba(129, 140, 248, 0.12);
+  --primary-glow: rgba(129, 140, 248, 0.2);
+  --secondary: #38BDF8;
+  --secondary-hover: #7DD3FC;
+  --secondary-light: rgba(56, 189, 248, 0.12);
+  --accent: #818CF8;
+  --accent-light: rgba(129, 140, 248, 0.12);
+  --border: #334155;
+  --border-focus: #818CF8;
+  --card: #1E293B;
+  --card-foreground: #F1F5F9;
+  --popover: #1E293B;
+  --popover-foreground: #F1F5F9;
+  --muted: #1E293B;
   --muted-foreground: #94A3B8;
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
-  --input: #1A1D23;
-  --ring: #8B84FF;
-  --chart-1: #8B84FF;
-  --chart-2: #34D399;
-  --chart-3: #F59E0B;
-  --chart-4: #EF4444;
-  --chart-5: #A5A0FF;
-  --sidebar: #1A1D23;
-  --sidebar-foreground: #E2E8F0;
-  --sidebar-primary: #8B84FF;
+  --input: #1E293B;
+  --ring: #818CF8;
+  --sidebar: #1E293B;
+  --sidebar-foreground: #F1F5F9;
+  --sidebar-primary: #818CF8;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #1A1D23;
-  --sidebar-accent-foreground: #8B84FF;
-  --sidebar-border: transparent;
-  --sidebar-ring: #8B84FF;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #818CF8;
+  --sidebar-border: #334155;
+  --sidebar-ring: #818CF8;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --shadow-accent: 0 4px 14px rgba(129, 140, 248, 0.25);
+  --shadow-accent-lg: 0 8px 24px rgba(129, 140, 248, 0.35);
 }
 
 @layer base {
