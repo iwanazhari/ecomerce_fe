@@ -39,6 +39,11 @@ export function parseCurrency(formatted: string): number {
 export function getImageUrl(url: string): string {
   if (!url) return ''
 
+  // Blob/data URLs are browser-temporary — never transform or send to MinIO
+  if (url.startsWith('blob:') || url.startsWith('data:')) {
+    return url
+  }
+
   // Already an absolute external URL (not from our backend) — return as-is
   if ((url.startsWith('http://') || url.startsWith('https://')) && !url.includes(config.apiBaseUrl)) {
     return url

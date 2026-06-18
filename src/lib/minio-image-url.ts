@@ -20,6 +20,11 @@ const BACKEND_URL = config.apiBaseUrl;
 export function getImageUrl(url: string): string {
   if (!url) return "";
 
+  // Blob and data URLs are browser-temporary — return as-is, never transform
+  if (url.startsWith("blob:") || url.startsWith("data:")) {
+    return url;
+  }
+
   // Already an absolute URL that's not from our backend — return as-is (external images)
   if (
     (url.startsWith("http://") || url.startsWith("https://")) &&
