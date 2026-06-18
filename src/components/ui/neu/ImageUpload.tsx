@@ -91,7 +91,8 @@ export function ImageUpload({
 
       const updated = [...images, ...newImages];
       setImages(updated);
-      onChange?.(updated);
+      // Jangan emit onChange dengan blob URL — tunggu upload selesai
+      // onChange?.(updated);
 
       setUploading(true);
       setUploadProgress(0);
@@ -121,7 +122,7 @@ export function ImageUpload({
         // Revert to previous state on error
         const reverted = updated.slice(0, -newImages.length);
         setImages(reverted);
-        onChange?.(reverted);
+        // onChange?.(reverted); — sudah tidak perlu, onChange sebelumnya tidak diemit dengan blob
       } finally {
         setUploading(false);
       }

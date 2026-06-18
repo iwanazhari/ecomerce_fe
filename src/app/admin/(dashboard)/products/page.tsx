@@ -368,6 +368,15 @@ export default function AdminProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormSubmitting(true);
+
+    // Reject if any image still has blob URL (upload not complete)
+    const hasBlob = formImages.some((img) => img.url?.startsWith('blob:'));
+    if (hasBlob) {
+      alert('Tunggu upload gambar selesai sebelum menyimpan.');
+      setFormSubmitting(false);
+      return;
+    }
+
     console.log("[DEBUG handleSubmit] modalMode:", modalMode, "formImages:", JSON.stringify(formImages, null, 2), "formImages.length:", formImages.length);
     try {
       if (modalMode === "create") {
